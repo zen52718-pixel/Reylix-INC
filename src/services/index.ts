@@ -1,0 +1,88 @@
+/**
+ * Composition root for services. The ONLY place services are bound to the configured
+ * storage backend (via the repository factory) and to environment-derived config.
+ * Route handlers call `getServices()`; tests construct the service classes directly with
+ * a memory repo for isolation.
+ */
+import { allowedRedirectHosts, loadEnv, redirectBaseUrl } from '@/src/config/env';
+import { getRepositories } from '@/src/repositories';
+import { AttributionService } from '@/src/services/AttributionService';
+import { AuditService } from '@/src/services/AuditService';
+import { BuyerService } from '@/src/services/BuyerService';
+import { CommissionService } from '@/src/services/CommissionService';
+import { ContactService } from '@/src/services/ContactService';
+import { LeadService } from '@/src/services/LeadService';
+import { LoggingAdminNotifier } from '@/src/services/notifications';
+import { OfferService } from '@/src/services/OfferService';
+import { PublisherPortalService } from '@/src/services/PublisherPortalService';
+import { PublisherService } from '@/src/services/PublisherService';
+import { PayoutService } from '@/src/services/PayoutService';
+
+export interface Services {
+  buyers: BuyerService;
+  publishers: PublisherService;
+  offers: OfferService;
+  attribution: AttributionService;
+  leads: LeadService;
+  portal: PublisherPortalService;
+  audit: AuditService;
+  commission: CommissionService;
+  payouts: PayoutService;
+  contact: ContactService;
+}
+
+let services: Services | null = null;
+
+export function getServices(): Services {
+  if (!services) {
+    const repos = getRepositories();
+    const env = loadEnv();
+    const notifier = new LoggingAdminNotifier();
+    const audit = new AuditService(repos.audit);
+    const attribution = new AttributionService(
+      { publishers: repos.publishers, offers: repos.offers, clicks: repos.clicks },
+      {
+        dedupMinutes: env.CLICK_DEDUP_MINUTES,
+        allowedRedirectHosts: allowedRedirectHosts(),
+      },
+    );
+    services = {
+      buyers: new BuyerService(repos.buyers, audit),
+      publishers: new PublisherService(repos.publishers, audit),
+      offers: new OfferService(repos.offers),
+      attribution,
+      leads: new LeadService({ leads: repos.leads, offers: repos.offers, attribution, notifier }),
+      portal: new PublisherPortalService(
+        {
+          publishers: repos.publishers,
+          offers: repos.offers,
+          leads: repos.leads,
+          clicks: repos.clicks,
+          referralLinks: repos.referralLinks,
+        },
+        { redirectBaseUrl: redirectBaseUrl() },
+      ),
+      audit,
+      commission: new CommissionService(repos.leads, repos.offers, audit),
+      payouts: new PayoutService(repos.leads, repos.payouts, audit),
+      contact: new ContactService(repos.contacts, notifier),
+    };
+  }
+  return services;
+}
+
+/** Test-only: clear the cached services singleton. */
+export function __resetServices(): void {
+  services = null;
+}
+
+export { BuyerService } from '@/src/services/BuyerService';
+export { PublisherService } from '@/src/services/PublisherService';
+export { OfferService } from '@/src/services/OfferService';
+export { AttributionService } from '@/src/services/AttributionService';
+export { LeadService } from '@/src/services/LeadService';
+export { PublisherPortalService } from '@/src/services/PublisherPortalService';
+export { AuditService } from '@/src/services/AuditService';
+export { CommissionService } from '@/src/services/CommissionService';
+export { PayoutService } from '@/src/services/PayoutService';
+export { ContactService } from '@/src/services/ContactService';

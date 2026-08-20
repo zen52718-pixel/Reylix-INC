@@ -1,0 +1,66 @@
+{
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "rules": {
+    "import/no-restricted-paths": [
+      "error",
+      {
+        "zones": [
+          {
+            "target": "./src/domain",
+            "from": "./src/repositories",
+            "message": "Domain is the innermost layer and must not depend on repositories."
+          },
+          {
+            "target": "./src/domain",
+            "from": "./src/services",
+            "message": "Domain must not depend on services."
+          },
+          {
+            "target": "./src/services",
+            "from": "./src/repositories/memory",
+            "message": "Services must depend on repository interfaces, not the Memory adapter."
+          },
+          {
+            "target": "./src/services",
+            "from": "./src/repositories/supabase",
+            "message": "Services must depend on repository interfaces, not the Supabase adapter."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/domain/**/*.ts",
+        "src/services/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@supabase/supabase-js",
+                "message": "Business logic must not import storage/auth SDKs directly. Depend on repository interfaces instead."
+              }
+            ],
+            "patterns": [
+              {
+                "group": [
+                  "**/repositories/supabase/**",
+                  "**/repositories/memory/**",
+                  "@/src/repositories/supabase/**",
+                  "@/src/repositories/memory/**"
+                ],
+                "message": "Business logic must depend only on repository interfaces (src/repositories/interfaces.ts), never a concrete adapter."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
