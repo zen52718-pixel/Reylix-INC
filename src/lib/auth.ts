@@ -25,7 +25,7 @@ export interface CookieStore {
   get(name: string): { value: string } | undefined;
 }
 
-export const SESSION_COOKIE = 'nd_session';
+export const SESSION_COOKIE = 'rx_session';
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 export function encodeSession(session: Session): string {
