@@ -2,17 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #151a4a;
-  --muted: #5b6488;
-  --border: #e2e6f2;
-  /* System stack: no build-time font fetch, so builds work offline and on Vercel alike. */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #171b30;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Headings set their own tracking; this keeps long lines from breaking badly. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  /* A visible focus ring everywhere, since the site is heavily keyboard-navigable. */
+  :focus-visible {
+    outline: 2px solid theme('colors.brand.600');
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  -webkit-font-smoothing: antialiased;
+@layer components {
+  /* The recurring "instrument label": small, spaced, monospace. Used for eyebrows,
+     table headers, and figure captions so the whole site shares one voice for metadata. */
+  .label {
+    @apply font-mono text-[0.68rem] font-medium uppercase tracking-label;
+  }
+
+  /* Page gutter. One definition so every section lines up on the same grid. */
+  .gutter {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8 lg:px-12;
+  }
 }
