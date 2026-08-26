@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 /**
  * Small storage-agnostic value helpers used across services.
  *
@@ -51,4 +53,46 @@ export function normalizePhoneUS(input: string): string {
 export function formatPhoneUS(e164: string): string {
   const m = /^\+1(\d{3})(\d{3})(\d{4})$/.exec((e164 ?? '').trim());
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : (e164 ?? '');
+}
+
+// ── consumer de-duplication ──────────────────────────────────────────────────
+
+/**
+ * Resolve the consumer de-duplication window for an offer.
+ *
+ * Precedence: the offer's own window, then its campaign's, then NOT CONFIGURED.
+ *
+ * `null` means de-duplication is switched off for that offer, and that is deliberate:
+ * no default business value is invented here. How long two submissions from the same
+ * person count as one payable lead is a commercial term that differs by vertical and by
+ * programme, and guessing it would silently change what a publisher is paid.
+ *
+ * TEMPORARY STATE: every offer currently resolves to null because no window has been
+ * configured yet. A window must be set per campaign (or per offer) before the partner
+ * programme opens to live traffic.
+ */
+export function resolveLeadDedupWindowMinutes(
+  offerWindow?: number | null,
+  campaignWindow?: number | null,
+): number | null {
+  if (typeof offerWindow === 'number' && offerWindow > 0) return offerWindow;
+  if (typeof campaignWindow === 'number' && campaignWindow > 0) return campaignWindow;
+  return null;
+}
+
+/**
+ * Identity of a consumer within one offer, used to spot the same person submitting twice.
+ *
+ * Email is preferred over phone because it is less often shared between household
+ * members. Returns null when neither is present — an anonymous submission cannot be
+ * de-duplicated, and pretending otherwise would collapse unrelated people together.
+ */
+export function consumerDedupKey(
+  offerId: string,
+  email?: string,
+  phone?: string,
+): string | null {
+  const identity = (email ?? '').trim().toLowerCase() || normalizePhoneUS(phone ?? '');
+  if (!identity || !offerId) return null;
+  return createHash('sha256').update(`${offerId}|${identity}`).digest('hex');
 }

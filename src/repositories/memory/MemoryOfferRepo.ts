@@ -26,8 +26,12 @@ export class MemoryOfferRepo implements OfferRepo {
     return [...this.store.values()].filter((o) => o.isActive);
   }
 
-  async listByBuyer(buyerId: string): Promise<Offer[]> {
-    return [...this.store.values()].filter((o) => o.buyerId === buyerId);
+  async listByClient(clientId: string): Promise<Offer[]> {
+    return [...this.store.values()].filter((o) => o.clientId === clientId);
+  }
+
+  async listByCampaign(campaignId: string): Promise<Offer[]> {
+    return [...this.store.values()].filter((o) => o.campaignId === campaignId);
   }
 
   async create(o: Omit<Offer, 'id' | 'createdAt'>): Promise<Offer> {

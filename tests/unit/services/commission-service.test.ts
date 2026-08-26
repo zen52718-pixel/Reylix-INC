@@ -1,133 +1,150 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ConflictError, ValidationError } from '@/src/domain/errors';
-import type { Lead } from '@/src/domain/types';
-import { MemoryAuditRepo } from '@/src/repositories/memory/MemoryAuditRepo';
-import { MemoryLeadRepo } from '@/src/repositories/memory/MemoryLeadRepo';
-import { MemoryOfferRepo } from '@/src/repositories/memory/MemoryOfferRepo';
+import { ConflictError, NotFoundError, ValidationError } from '@/src/domain/errors';
 import { AuditService } from '@/src/services/AuditService';
 import { CommissionService } from '@/src/services/CommissionService';
+import { seedAttributedLead, seedChain, type SeededChain } from '@/tests/support/fixtures';
 
-async function setup() {
-  const leads = new MemoryLeadRepo();
-  const offers = new MemoryOfferRepo();
-  const auditRepo = new MemoryAuditRepo();
-  const audit = new AuditService(auditRepo);
-  const offer = await offers.create({
-    buyerId: 'buyer-1',
-    offerCode: 'MVA1',
-    name: 'MVA',
-    destinationUrl: 'https://x.com',
-    commissionAmount: 5000,
-    currency: 'USD',
-    isActive: true,
-  });
-  const service = new CommissionService(leads, offers, audit);
-  return { service, leads, offers, auditRepo, offer };
+function build(chain: SeededChain) {
+  const audit = new AuditService(chain.repos.audit);
+  return new CommissionService(
+    chain.repos.leads,
+    chain.repos.offers,
+    chain.repos.commissions,
+    chain.repos.leadAttributions,
+    audit,
+  );
 }
 
-async function newLead(leads: MemoryLeadRepo, offerId: string | null): Promise<Lead> {
-  return leads.append({
-    publisherId: 'p1',
-    offerId,
-    refCode: 'AHMED-MVA1',
-    buyerId: 'buyer-1',
-    attributionSource: 'param',
-    status: 'new',
-    commissionAmount: 0,
-    capturedData: {},
-    createdAt: new Date().toISOString(),
-  });
-}
+describe('CommissionService', () => {
+  let chain: SeededChain;
+  let service: CommissionService;
 
-describe('CommissionService transitions', () => {
-  let ctx: Awaited<ReturnType<typeof setup>>;
   beforeEach(async () => {
-    ctx = await setup();
+    chain = await seedChain({ commissionAmount: 5000 });
+    service = build(chain);
   });
 
-  it('new → approved locks commission to the offer amount, sets approved_at, audits', async () => {
-    const lead = await newLead(ctx.leads, ctx.offer.id);
-    const approved = await ctx.service.approve(lead.id, 'admin@x');
+  it('creates a commission record at approval, priced from the offer by default', async () => {
+    const { lead } = await seedAttributedLead(chain);
+
+    const { lead: approved, commission } = await service.approve(lead.id, 'admin@reylix.com');
+
     expect(approved.status).toBe('approved');
-    expect(approved.commissionAmount).toBe(5000);
     expect(approved.approvedAt).toBeTruthy();
-    const audit = await ctx.auditRepo.list({ action: 'approved' });
-    expect(audit).toHaveLength(1);
+    expect(commission).not.toBeNull();
+    expect(commission?.amount).toBe(5000);
+    expect(commission?.status).toBe('payable');
+    expect(commission?.publisherId).toBe(chain.publisherId);
+    expect(commission?.clientId).toBe(chain.clientId);
   });
 
-  it('new → rejected zeroes commission and records the reason', async () => {
-    const lead = await newLead(ctx.leads, ctx.offer.id);
-    const rejected = await ctx.service.reject(lead.id, 'admin@x', 'spam');
-    expect(rejected.status).toBe('rejected');
-    expect(rejected.commissionAmount).toBe(0);
-    expect(rejected.rejectReason).toBe('spam');
+  it('locks the admin-entered amount rather than the offer amount', async () => {
+    const { lead } = await seedAttributedLead(chain);
+    const { commission } = await service.approve(lead.id, 'admin@reylix.com', 7250);
+    expect(commission?.amount).toBe(7250);
+
+    // A later change to the offer must not alter what has already been earned.
+    await chain.repos.offers.update(chain.offerId, { commissionAmount: 1 });
+    expect((await service.getForLead(lead.id))?.amount).toBe(7250);
   });
 
-  it('approved → paid sets paid_at', async () => {
-    const lead = await newLead(ctx.leads, ctx.offer.id);
-    await ctx.service.approve(lead.id, 'admin@x');
-    const paid = await ctx.service.markPaid(lead.id, 'admin@x');
-    expect(paid.status).toBe('paid');
-    expect(paid.paidAt).toBeTruthy();
-  });
+  it('approves an UNATTRIBUTED lead but creates no commission', async () => {
+    const lead = await chain.repos.leads.append({
+      publisherId: null,
+      offerId: chain.offerId,
+      clientId: chain.clientId,
+      productId: chain.productId,
+      campaignId: chain.campaignId,
+      refCode: null,
+      status: 'new',
+      capturedData: {},
+      createdAt: new Date().toISOString(),
+    });
 
-  it('rejects illegal transitions with ConflictError (409)', async () => {
-    const lead = await newLead(ctx.leads, ctx.offer.id);
-    await expect(ctx.service.markPaid(lead.id, 'admin@x')).rejects.toBeInstanceOf(ConflictError); // new→paid
-    await ctx.service.approve(lead.id, 'admin@x');
-    await expect(ctx.service.approve(lead.id, 'admin@x')).rejects.toBeInstanceOf(ConflictError); // approved→approved
-  });
-
-  it('refuses to approve a lead with no offer', async () => {
-    const lead = await newLead(ctx.leads, null);
-    await expect(ctx.service.approve(lead.id, 'admin@x')).rejects.toBeInstanceOf(ConflictError);
-  });
-
-  it('assigns an unattributed lead (manual) and overrides commission', async () => {
-    const lead = await newLead(ctx.leads, ctx.offer.id);
-    const assigned = await ctx.service.assign(lead.id, 'publisher-9', 'admin@x');
-    expect(assigned.publisherId).toBe('publisher-9');
-    expect(assigned.attributionSource).toBe('manual');
-    const overridden = await ctx.service.overrideCommission(lead.id, 1234, 'admin@x');
-    expect(overridden.commissionAmount).toBe(1234);
-  });
-
-  it('stores the override flag + amount and uses offer commission as the default', async () => {
-    const lead = await newLead(ctx.leads, ctx.offer.id); // offer commission = 5000
-    const approvedDefault = await ctx.service.approve(lead.id, 'admin@x');
-    expect(approvedDefault.commissionAmount).toBe(5000); // no override → offer default
-  });
-
-  it('preserves a commission override through approval (override wins over offer)', async () => {
-    const lead = await newLead(ctx.leads, ctx.offer.id);
-    const o = await ctx.service.overrideCommission(lead.id, 1234, 'admin@x');
-    expect(o.commissionOverrideEnabled).toBe(true);
-    expect(o.commissionOverrideAmount).toBe(1234);
-    expect(o.commissionAmount).toBe(1234);
-
-    const approved = await ctx.service.approve(lead.id, 'admin@x');
-    expect(approved.commissionAmount).toBe(1234); // not the offer's 5000
-  });
-
-  it('clearing the override reverts an approved lead to the offer commission', async () => {
-    const lead = await newLead(ctx.leads, ctx.offer.id);
-    await ctx.service.overrideCommission(lead.id, 1234, 'admin@x');
-    await ctx.service.approve(lead.id, 'admin@x');
-
-    const cleared = await ctx.service.clearCommissionOverride(lead.id, 'admin@x');
-    expect(cleared.commissionOverrideEnabled).toBe(false);
-    expect(cleared.commissionAmount).toBe(5000); // back to offer default
-  });
-
-  it('approve locks the admin-entered commission amount (overrides the offer default)', async () => {
-    const lead = await newLead(ctx.leads, ctx.offer.id); // offer commission = 5000
-    const approved = await ctx.service.approve(lead.id, 'admin@x', 1500);
+    const { lead: approved, commission } = await service.approve(lead.id, 'admin@reylix.com');
     expect(approved.status).toBe('approved');
-    expect(approved.commissionAmount).toBe(1500);
+    // The client still wants the lead; there is simply nobody to pay for it.
+    expect(commission).toBeNull();
   });
 
-  it('reject requires a non-empty reason', async () => {
-    const lead = await newLead(ctx.leads, ctx.offer.id);
-    await expect(ctx.service.reject(lead.id, 'admin@x', '   ')).rejects.toBeInstanceOf(ValidationError);
+  it('refuses to guess a price for a non-flat commission model', async () => {
+    const cpa = await seedChain({ commissionModel: 'cpa', commissionAmount: 5000 });
+    const cpaService = build(cpa);
+    const { lead } = await seedAttributedLead(cpa);
+
+    await expect(cpaService.approve(lead.id, 'admin@reylix.com')).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+    // An explicit amount is accepted.
+    const { commission } = await cpaService.approve(lead.id, 'admin@reylix.com', 1234);
+    expect(commission?.amount).toBe(1234);
+    expect(commission?.model).toBe('cpa');
+  });
+
+  it('rejects with a required reason and creates no commission', async () => {
+    const { lead } = await seedAttributedLead(chain);
+
+    await expect(service.reject(lead.id, 'admin@reylix.com', '  ')).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+
+    const rejected = await service.reject(lead.id, 'admin@reylix.com', 'Wrong service area');
+    expect(rejected.status).toBe('rejected');
+    expect(rejected.rejectReason).toBe('Wrong service area');
+    expect(await service.getForLead(lead.id)).toBeNull();
+  });
+
+  it('refuses illegal transitions', async () => {
+    const { lead } = await seedAttributedLead(chain);
+    await service.reject(lead.id, 'admin@reylix.com', 'no');
+    await expect(service.approve(lead.id, 'admin@reylix.com')).rejects.toBeInstanceOf(
+      ConflictError,
+    );
+  });
+
+  it('voids an unpaid commission and claws back a paid one', async () => {
+    const { lead } = await seedAttributedLead(chain);
+    const { commission } = await service.approve(lead.id, 'admin@reylix.com');
+
+    const voided = await service.voidCommission(lead.id, 'admin@reylix.com', 'client reversed');
+    expect(voided.status).toBe('void');
+    expect(voided.voidReason).toBe('client reversed');
+    expect(await service.getForLead(lead.id)).toBeNull();
+
+    // Now the paid case, on a second lead.
+    const second = await seedAttributedLead(chain);
+    const approved = await service.approve(second.lead.id, 'admin@reylix.com');
+    await chain.repos.commissions.update(approved.commission!.id, {
+      status: 'paid',
+      paidAt: new Date().toISOString(),
+    });
+
+    const clawed = await service.voidCommission(second.lead.id, 'admin@reylix.com', 'fraud');
+    // Money already sent is reclaimed visibly, never deleted quietly.
+    expect(clawed.status).toBe('clawed_back');
+    expect(commission?.id).not.toBe(clawed.id);
+  });
+
+  it('requires a reason to void', async () => {
+    const { lead } = await seedAttributedLead(chain);
+    await service.approve(lead.id, 'admin@reylix.com');
+    await expect(service.voidCommission(lead.id, 'admin@reylix.com', ' ')).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+  });
+
+  it('raises NotFound when voiding a lead with no live commission', async () => {
+    const { lead } = await seedAttributedLead(chain);
+    await expect(service.voidCommission(lead.id, 'admin@reylix.com', 'x')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+
+  it('writes an audit row for every approval', async () => {
+    const { lead } = await seedAttributedLead(chain);
+    await service.approve(lead.id, 'admin@reylix.com');
+    const entries = await chain.repos.audit.list({ entityId: lead.id });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.action).toBe('approved');
   });
 });

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  consumerDedupKey,
   formatPhoneUS,
   formatRefCode,
   normalizePhoneUS,
   parseRefCode,
+  resolveLeadDedupWindowMinutes,
 } from '@/src/domain/value-objects';
 
 describe('ref code value object', () => {
@@ -55,5 +57,51 @@ describe('formatPhoneUS', () => {
 
   it('passes through anything that is not a US E.164 number', () => {
     expect(formatPhoneUS('+442071234567')).toBe('+442071234567');
+  });
+});
+
+describe('resolveLeadDedupWindowMinutes', () => {
+  it('prefers the offer window over the campaign window', () => {
+    expect(resolveLeadDedupWindowMinutes(120, 60)).toBe(120);
+  });
+
+  it('falls back to the campaign window when the offer sets none', () => {
+    expect(resolveLeadDedupWindowMinutes(undefined, 60)).toBe(60);
+    expect(resolveLeadDedupWindowMinutes(null, 60)).toBe(60);
+  });
+
+  it('returns null when neither level is configured', () => {
+    // Deliberately NOT a default value: guessing this would change publisher pay.
+    expect(resolveLeadDedupWindowMinutes(undefined, undefined)).toBeNull();
+    expect(resolveLeadDedupWindowMinutes(0, 0)).toBeNull();
+  });
+});
+
+describe('consumerDedupKey', () => {
+  it('is stable for the same consumer on the same offer', () => {
+    const a = consumerDedupKey('offer-1', 'Sara@Example.com');
+    const b = consumerDedupKey('offer-1', 'sara@example.com');
+    expect(a).toBe(b);
+  });
+
+  it('differs across offers, so one offer cannot suppress another', () => {
+    expect(consumerDedupKey('offer-1', 'sara@example.com')).not.toBe(
+      consumerDedupKey('offer-2', 'sara@example.com'),
+    );
+  });
+
+  it('prefers email, and falls back to a normalized phone number', () => {
+    expect(consumerDedupKey('offer-1', undefined, '(555) 123-4567')).toBe(
+      consumerDedupKey('offer-1', undefined, '555-123-4567'),
+    );
+    expect(consumerDedupKey('offer-1', 'sara@example.com', '(555) 123-4567')).not.toBe(
+      consumerDedupKey('offer-1', undefined, '(555) 123-4567'),
+    );
+  });
+
+  it('returns null when there is nothing to identify the consumer by', () => {
+    // Collapsing anonymous submissions together would merge unrelated people.
+    expect(consumerDedupKey('offer-1')).toBeNull();
+    expect(consumerDedupKey('offer-1', '   ', '  ')).toBeNull();
   });
 });

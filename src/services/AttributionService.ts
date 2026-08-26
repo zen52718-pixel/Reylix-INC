@@ -1,30 +1,44 @@
 /**
- * AttributionService (Blueprint Sprint 2) — the core of the attribution loop.
+ * AttributionService — the core of the attribution loop.
  *
  * Pure business logic: resolve a referral code to its publisher/offer, compute click
- * dedup + uniqueness, build the (allowlisted) redirect destination, and append the click.
- * Storage-agnostic and framework-agnostic — it knows nothing about HTTP requests; the
- * `/r/[ref]` route adapts the request to these calls. Depends only on repo interfaces.
+ * dedup, build the (allowlisted) redirect destination, append the click, and write the
+ * LeadAttribution row that decides who is credited.
+ *
+ * Attribution is APPEND-ONLY. Re-attributing a lead supersedes the previous row rather
+ * than editing it, so a commission dispute can be answered with evidence of what was
+ * decided and when — which a single overwritable field cannot provide.
+ *
+ * Storage- and framework-agnostic; depends only on repository interfaces.
  */
 import { createHash } from 'node:crypto';
-import type { Offer, Publisher } from '@/src/domain/types';
+import { ConflictError, NotFoundError, ValidationError } from '@/src/domain/errors';
+import type { AttributionSource, Click, LeadAttribution, Offer, Publisher } from '@/src/domain/types';
 import { formatRefCode, parseRefCode, type RefCodeParts } from '@/src/domain/value-objects';
-import type { ClickRepo, OfferRepo, PublisherRepo } from '@/src/repositories/interfaces';
+import type {
+  ClickRepo,
+  LeadAttributionRepo,
+  LeadRepo,
+  OfferRepo,
+  PublisherRepo,
+} from '@/src/repositories/interfaces';
 
 export interface AttributionDeps {
   publishers: PublisherRepo;
   offers: OfferRepo;
   clicks: ClickRepo;
+  leadAttributions: LeadAttributionRepo;
+  leads: LeadRepo;
 }
 
 export interface AttributionConfig {
-  /** Dedup window in minutes (env CLICK_DEDUP_MINUTES). */
+  /** Click dedup window in minutes (env CLICK_DEDUP_MINUTES). Technical, not commercial. */
   dedupMinutes: number;
-  /** Hosts permitted as redirect targets for the optional `?to=` override (env ALLOWED_REDIRECT_HOSTS). */
+  /** Hosts permitted as redirect targets for the optional `?to=` override. */
   allowedRedirectHosts: string[];
 }
 
-/** Why a ref failed to resolve — surfaced for anomaly logging (never shown to users). */
+/** Why a ref failed to resolve — surfaced for anomaly logging, never shown to users. */
 export type ResolveFailureReason =
   | 'malformed_ref'
   | 'unknown_publisher'
@@ -71,27 +85,35 @@ export class AttributionService {
     if (!offer) return { ok: false, reason: 'unknown_offer' };
     if (!offer.isActive) return { ok: false, reason: 'offer_inactive' };
 
-    return { ok: true, refCode: formatRefCode(publisher.publisherCode, offer.offerCode), publisher, offer };
+    return {
+      ok: true,
+      refCode: formatRefCode(publisher.publisherCode, offer.offerCode),
+      publisher,
+      offer,
+    };
   }
 
   /**
-   * Dedup key for a click. The Blueprint describes hash(ip + ua); we scope it to the
-   * referral link as well so clicks on *different* links from the same visitor are not
-   * collapsed into one another (per-link uniqueness, not per-visitor).
+   * Dedup key for a click, scoped to the referral link as well as the visitor, so clicks
+   * on different links from the same person are not collapsed into one another.
    */
   computeDedupKey(refCode: string, ip: string, userAgent: string): string {
     return createHash('sha256').update(`${refCode}|${ip}|${userAgent}`).digest('hex');
   }
 
-  /** Append a click, computing `is_unique` against the dedup window. Idempotent-ish: a
-   *  repeat within the window is still recorded but flagged `is_unique=false`. */
-  async recordClick(resolved: ResolvedRef, ctx: ClickContext): Promise<void> {
+  /** Append a click, computing `isUnique` against the dedup window. Returns the stored row. */
+  async recordClick(
+    resolved: ResolvedRef,
+    ctx: ClickContext,
+    referralLinkId?: string,
+  ): Promise<Click> {
     const dedupKey = this.computeDedupKey(resolved.refCode, ctx.ip, ctx.userAgent);
     const seen = await this.deps.clicks.recentDedup(dedupKey, this.config.dedupMinutes * 60_000);
-    await this.deps.clicks.append({
+    return this.deps.clicks.append({
       refCode: resolved.refCode,
       publisherId: resolved.publisher.id,
       offerId: resolved.offer.id,
+      referralLinkId,
       clickedAt: new Date().toISOString(),
       country: ctx.country,
       deviceType: ctx.deviceType,
@@ -102,9 +124,91 @@ export class AttributionService {
   }
 
   /**
+   * Write the attribution row for a lead. Fails if the lead already has a live
+   * attribution — credit is granted once, and changing it is an explicit re-attribution.
+   */
+  async attribute(input: {
+    leadId: string;
+    publisherId: string;
+    offerId: string;
+    clientId: string;
+    source: AttributionSource;
+    referralLinkId?: string;
+    clickId?: string;
+    attributedBy?: string;
+    reason?: string;
+  }): Promise<LeadAttribution> {
+    if (input.source === 'manual' && !input.attributedBy) {
+      throw new ValidationError('attributedBy is required for manual attribution', {
+        leadId: input.leadId,
+      });
+    }
+    return this.deps.leadAttributions.append({
+      leadId: input.leadId,
+      publisherId: input.publisherId,
+      offerId: input.offerId,
+      clientId: input.clientId,
+      referralLinkId: input.referralLinkId,
+      clickId: input.clickId,
+      source: input.source,
+      attributedAt: new Date().toISOString(),
+      attributedBy: input.attributedBy,
+      reason: input.reason,
+    });
+  }
+
+  /** The publisher currently credited for a lead, if any. */
+  async currentAttribution(leadId: string): Promise<LeadAttribution | null> {
+    return this.deps.leadAttributions.getCurrentForLead(leadId);
+  }
+
+  async attributionHistory(leadId: string): Promise<LeadAttribution[]> {
+    return this.deps.leadAttributions.listByLead(leadId);
+  }
+
+  /**
+   * Move credit for a lead to a different publisher. The existing row is superseded, not
+   * edited, and the lead's denormalized publisherId is refreshed to match.
+   */
+  async reattribute(
+    leadId: string,
+    publisherId: string,
+    actor: string,
+    reason: string,
+  ): Promise<LeadAttribution> {
+    const trimmed = (reason ?? '').trim();
+    if (!trimmed) {
+      throw new ValidationError('A reason is required to re-attribute a lead', { leadId });
+    }
+    const lead = await this.deps.leads.getById(leadId);
+    if (!lead) throw new NotFoundError(`Lead ${leadId} not found`);
+    if (!lead.offerId || !lead.clientId) {
+      throw new ConflictError('Lead has no offer; it cannot be attributed', { leadId });
+    }
+    const publisher = await this.deps.publishers.getById(publisherId);
+    if (!publisher) throw new NotFoundError(`Publisher ${publisherId} not found`);
+
+    const current = await this.deps.leadAttributions.getCurrentForLead(leadId);
+    if (current) {
+      await this.deps.leadAttributions.supersede(current.id, new Date().toISOString(), trimmed);
+    }
+
+    const created = await this.attribute({
+      leadId,
+      publisherId,
+      offerId: lead.offerId,
+      clientId: lead.clientId,
+      source: 'manual',
+      attributedBy: actor,
+      reason: trimmed,
+    });
+    await this.deps.leads.update(leadId, { publisherId });
+    return created;
+  }
+
+  /**
    * Build the final redirect URL with `?ref=` appended. Uses the offer's (admin-trusted)
-   * destination unless a valid, allowlisted `?to=` override is supplied. Returns whether a
-   * provided `to` was rejected so the route can log an anomaly.
+   * destination unless a valid, allowlisted `?to=` override is supplied.
    */
   buildDestinationUrl(
     offer: Offer,
@@ -140,8 +244,6 @@ function appendRefParam(rawUrl: string, refCode: string): string {
     url.searchParams.set('ref', refCode);
     return url.toString();
   } catch {
-    // Last-resort fallback for a non-absolute destination (should not happen — offers are
-    // validated as http(s) URLs on create).
     const sep = rawUrl.includes('?') ? '&' : '?';
     return `${rawUrl}${sep}ref=${encodeURIComponent(refCode)}`;
   }

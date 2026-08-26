@@ -1,84 +1,146 @@
-import { describe, expect, it } from 'vitest';
-import { MemoryAuditRepo } from '@/src/repositories/memory/MemoryAuditRepo';
-import { MemoryLeadRepo } from '@/src/repositories/memory/MemoryLeadRepo';
-import { MemoryPayoutRepo } from '@/src/repositories/memory/MemoryPayoutRepo';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { ConflictError, ValidationError } from '@/src/domain/errors';
 import { AuditService } from '@/src/services/AuditService';
+import { CommissionService } from '@/src/services/CommissionService';
 import { PayoutService } from '@/src/services/PayoutService';
+import { seedAttributedLead, seedChain, type SeededChain } from '@/tests/support/fixtures';
 
-async function setup() {
-  const leads = new MemoryLeadRepo();
-  const payouts = new MemoryPayoutRepo();
-  const audit = new AuditService(new MemoryAuditRepo());
-  const service = new PayoutService(leads, payouts, audit);
-  return { service, leads, payouts };
+function build(chain: SeededChain) {
+  const audit = new AuditService(chain.repos.audit);
+  return {
+    commission: new CommissionService(
+      chain.repos.leads,
+      chain.repos.offers,
+      chain.repos.commissions,
+      chain.repos.leadAttributions,
+      audit,
+    ),
+    payouts: new PayoutService(
+      chain.repos.leads,
+      chain.repos.payouts,
+      chain.repos.commissions,
+      audit,
+    ),
+  };
 }
 
-async function approvedLead(leads: MemoryLeadRepo, publisherId: string, commission: number) {
-  return leads.append({
-    publisherId,
-    offerId: 'o1',
-    refCode: 'R',
-    buyerId: 'buyer-1',
-    attributionSource: 'param',
-    status: 'approved',
-    commissionAmount: commission,
-    capturedData: {},
-    createdAt: '2026-05-01T00:00:00.000Z',
-    approvedAt: '2026-05-10T00:00:00.000Z',
-  });
-}
+const period = () => new Date().toISOString().slice(0, 7);
 
 describe('PayoutService', () => {
-  it('generates one payout row per publisher from approved-unpaid leads in the period', async () => {
-    const { service, leads } = await setup();
-    await approvedLead(leads, 'p1', 5000);
-    await approvedLead(leads, 'p1', 5000);
-    await approvedLead(leads, 'p2', 3000);
+  let chain: SeededChain;
+  let svc: ReturnType<typeof build>;
 
-    const rows = await service.generate('2026-05', 'admin@x');
-    expect(rows).toHaveLength(2);
-    const p1 = rows.find((r) => r.publisherId === 'p1');
-    expect(p1?.leadCount).toBe(2);
-    expect(p1?.totalCommission).toBe(10000);
-    expect(p1?.status).toBe('pending');
+  beforeEach(async () => {
+    chain = await seedChain({ commissionAmount: 5000 });
+    svc = build(chain);
   });
 
-  it('rejects an invalid period format', async () => {
-    const { service } = await setup();
-    await expect(service.generate('2026/05', 'admin@x')).rejects.toThrow();
+  it('validates the period format', async () => {
+    await expect(svc.payouts.generate('2026-5', 'admin')).rejects.toBeInstanceOf(ValidationError);
   });
 
-  it('mark-paid flips the publisher’s approved leads in the period to paid', async () => {
-    const { service, leads } = await setup();
-    await approvedLead(leads, 'p1', 5000);
-    await approvedLead(leads, 'p1', 5000);
-    const [row] = await service.generate('2026-05', 'admin@x');
+  it('rolls payable commissions into one payout per publisher', async () => {
+    const a = await seedAttributedLead(chain);
+    const b = await seedAttributedLead(chain);
+    await svc.commission.approve(a.lead.id, 'admin');
+    await svc.commission.approve(b.lead.id, 'admin');
 
-    const result = await service.markPaid(row!.id, 'admin@x');
-    expect(result.payout.status).toBe('paid');
-    expect(result.paidLeads).toBe(2);
-    const remainingApproved = await leads.list({ publisherId: 'p1', status: 'approved' });
-    expect(remainingApproved).toHaveLength(0);
-    const paid = await leads.list({ publisherId: 'p1', status: 'paid' });
-    expect(paid).toHaveLength(2);
+    const rows = await svc.payouts.generate(period(), 'admin');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.leadCount).toBe(2);
+    expect(rows[0]?.totalCommission).toBe(10000);
+    expect(rows[0]?.status).toBe('pending');
+
+    // Commissions are stamped with the payout but stay payable: being in a draft batch
+    // is not the same as being on the way to a bank.
+    const stamped = await chain.repos.commissions.list({ payoutId: rows[0]!.id });
+    expect(stamped).toHaveLength(2);
+    expect(stamped.every((c) => c.status === 'payable')).toBe(true);
   });
 
-  it('summarizes owed vs paid commission per publisher', async () => {
-    const { service, leads } = await setup();
-    await approvedLead(leads, 'p1', 5000); // owed
-    await leads.append({
-      publisherId: 'p1',
-      offerId: 'o1',
-      refCode: 'R',
-      buyerId: 'buyer-1',
-      attributionSource: 'param',
-      status: 'paid',
-      commissionAmount: 2000,
-      capturedData: {},
-      createdAt: '2026-04-01T00:00:00.000Z',
+  it('moves through pending → approved → processing → paid, settling leads', async () => {
+    const { lead } = await seedAttributedLead(chain);
+    await svc.commission.approve(lead.id, 'admin');
+    const [payout] = await svc.payouts.generate(period(), 'admin');
+
+    await svc.payouts.approve(payout!.id, 'admin');
+    await svc.payouts.markProcessing(payout!.id, 'admin');
+    expect((await chain.repos.commissions.list({ payoutId: payout!.id }))[0]?.status).toBe(
+      'processing',
+    );
+
+    const { payout: paid, paidCommissions } = await svc.payouts.markPaid(payout!.id, 'admin', {
+      method: 'ach',
+      reference: 'ACH-123',
     });
-    const rows = await service.commissions('p1');
-    expect(rows[0]?.owed).toBe(5000);
-    expect(rows[0]?.paid).toBe(2000);
+    expect(paid.status).toBe('paid');
+    expect(paid.reference).toBe('ACH-123');
+    expect(paidCommissions).toBe(1);
+    expect((await chain.repos.commissions.list({ payoutId: payout!.id }))[0]?.status).toBe('paid');
+    // The lead follows the money — this is the only place a lead reaches `paid`.
+    expect((await chain.repos.leads.getById(lead.id))?.status).toBe('paid');
+  });
+
+  it('a failed payout releases its commissions back to payable', async () => {
+    const { lead } = await seedAttributedLead(chain);
+    await svc.commission.approve(lead.id, 'admin');
+    const [payout] = await svc.payouts.generate(period(), 'admin');
+    await svc.payouts.approve(payout!.id, 'admin');
+    await svc.payouts.markProcessing(payout!.id, 'admin');
+
+    const failed = await svc.payouts.markFailed(payout!.id, 'admin', 'bank rejected the transfer');
+    expect(failed.status).toBe('failed');
+    expect(failed.failureReason).toBe('bank rejected the transfer');
+
+    // Nothing is stranded: the next run collects them again.
+    const released = await chain.repos.commissions.list({ publisherId: chain.publisherId });
+    expect(released[0]?.status).toBe('payable');
+    expect(released[0]?.payoutId).toBeUndefined();
+    // And the lead was never marked paid.
+    expect((await chain.repos.leads.getById(lead.id))?.status).toBe('approved');
+  });
+
+  it('requires a reason to fail a payout', async () => {
+    const { lead } = await seedAttributedLead(chain);
+    await svc.commission.approve(lead.id, 'admin');
+    const [payout] = await svc.payouts.generate(period(), 'admin');
+    await expect(svc.payouts.markFailed(payout!.id, 'admin', '  ')).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+  });
+
+  it('refuses an illegal payout transition', async () => {
+    const { lead } = await seedAttributedLead(chain);
+    await svc.commission.approve(lead.id, 'admin');
+    const [payout] = await svc.payouts.generate(period(), 'admin');
+    // pending cannot jump straight to paid.
+    await expect(svc.payouts.markPaid(payout!.id, 'admin')).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('summarises owed versus paid per publisher', async () => {
+    const a = await seedAttributedLead(chain);
+    const b = await seedAttributedLead(chain);
+    await svc.commission.approve(a.lead.id, 'admin', 3000);
+    const approvedB = await svc.commission.approve(b.lead.id, 'admin', 2000);
+    await chain.repos.commissions.update(approvedB.commission!.id, {
+      status: 'paid',
+      paidAt: new Date().toISOString(),
+    });
+
+    const [summary] = await svc.payouts.commissions_summary(chain.publisherId);
+    expect(summary?.owed).toBe(3000);
+    expect(summary?.paid).toBe(2000);
+  });
+
+  it('excludes voided commissions from a payout run', async () => {
+    const a = await seedAttributedLead(chain);
+    const b = await seedAttributedLead(chain);
+    await svc.commission.approve(a.lead.id, 'admin', 3000);
+    await svc.commission.approve(b.lead.id, 'admin', 2000);
+    await svc.commission.voidCommission(b.lead.id, 'admin', 'duplicate consumer');
+
+    const [payout] = await svc.payouts.generate(period(), 'admin');
+    expect(payout?.totalCommission).toBe(3000);
+    expect(payout?.leadCount).toBe(1);
   });
 });

@@ -3,15 +3,19 @@ import { buildRepositories } from '@/src/repositories/index';
 import type { RepositoryBundle } from '@/src/repositories/interfaces';
 
 const ALL_KEYS: (keyof RepositoryBundle)[] = [
-  'buyers',
+  'clients',
+  'products',
+  'campaigns',
   'publishers',
   'offers',
   'referralLinks',
   'clicks',
   'leads',
+  'leadAttributions',
+  'commissions',
   'payouts',
   'audit',
-  'contacts',
+  'inquiries',
 ];
 
 describe('repository factory', () => {
@@ -25,4 +29,8 @@ describe('repository factory', () => {
       for (const key of ALL_KEYS) expect(repos[key]).toBeDefined();
     },
   );
+
+  it('exposes exactly the expected repositories, so a new one cannot be forgotten', () => {
+    expect(Object.keys(buildRepositories('memory')).sort()).toEqual([...ALL_KEYS].sort());
+  });
 });

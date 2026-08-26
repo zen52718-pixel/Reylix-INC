@@ -2,24 +2,28 @@
  * Composition root for services. The ONLY place services are bound to the configured
  * storage backend (via the repository factory) and to environment-derived config.
  * Route handlers call `getServices()`; tests construct the service classes directly with
- * a memory repo for isolation.
+ * memory repos for isolation.
  */
 import { allowedRedirectHosts, loadEnv, redirectBaseUrl } from '@/src/config/env';
 import { getRepositories } from '@/src/repositories';
 import { AttributionService } from '@/src/services/AttributionService';
 import { AuditService } from '@/src/services/AuditService';
-import { BuyerService } from '@/src/services/BuyerService';
+import { CampaignService } from '@/src/services/CampaignService';
+import { ClientService } from '@/src/services/ClientService';
 import { CommissionService } from '@/src/services/CommissionService';
-import { ContactService } from '@/src/services/ContactService';
+import { InquiryService } from '@/src/services/InquiryService';
 import { LeadService } from '@/src/services/LeadService';
 import { LoggingAdminNotifier } from '@/src/services/notifications';
 import { OfferService } from '@/src/services/OfferService';
+import { PayoutService } from '@/src/services/PayoutService';
+import { ProductService } from '@/src/services/ProductService';
 import { PublisherPortalService } from '@/src/services/PublisherPortalService';
 import { PublisherService } from '@/src/services/PublisherService';
-import { PayoutService } from '@/src/services/PayoutService';
 
 export interface Services {
-  buyers: BuyerService;
+  clients: ClientService;
+  products: ProductService;
+  campaigns: CampaignService;
   publishers: PublisherService;
   offers: OfferService;
   attribution: AttributionService;
@@ -28,7 +32,7 @@ export interface Services {
   audit: AuditService;
   commission: CommissionService;
   payouts: PayoutService;
-  contact: ContactService;
+  inquiries: InquiryService;
 }
 
 let services: Services | null = null;
@@ -40,18 +44,32 @@ export function getServices(): Services {
     const notifier = new LoggingAdminNotifier();
     const audit = new AuditService(repos.audit);
     const attribution = new AttributionService(
-      { publishers: repos.publishers, offers: repos.offers, clicks: repos.clicks },
+      {
+        publishers: repos.publishers,
+        offers: repos.offers,
+        clicks: repos.clicks,
+        leadAttributions: repos.leadAttributions,
+        leads: repos.leads,
+      },
       {
         dedupMinutes: env.CLICK_DEDUP_MINUTES,
         allowedRedirectHosts: allowedRedirectHosts(),
       },
     );
     services = {
-      buyers: new BuyerService(repos.buyers, audit),
+      clients: new ClientService(repos.clients, audit),
+      products: new ProductService(repos.products, audit),
+      campaigns: new CampaignService(repos.campaigns, repos.products, audit),
       publishers: new PublisherService(repos.publishers, audit),
-      offers: new OfferService(repos.offers),
+      offers: new OfferService(repos.offers, repos.campaigns, repos.clients),
       attribution,
-      leads: new LeadService({ leads: repos.leads, offers: repos.offers, attribution, notifier }),
+      leads: new LeadService({
+        leads: repos.leads,
+        offers: repos.offers,
+        campaigns: repos.campaigns,
+        attribution,
+        notifier,
+      }),
       portal: new PublisherPortalService(
         {
           publishers: repos.publishers,
@@ -59,13 +77,20 @@ export function getServices(): Services {
           leads: repos.leads,
           clicks: repos.clicks,
           referralLinks: repos.referralLinks,
+          commissions: repos.commissions,
         },
         { redirectBaseUrl: redirectBaseUrl() },
       ),
       audit,
-      commission: new CommissionService(repos.leads, repos.offers, audit),
-      payouts: new PayoutService(repos.leads, repos.payouts, audit),
-      contact: new ContactService(repos.contacts, notifier),
+      commission: new CommissionService(
+        repos.leads,
+        repos.offers,
+        repos.commissions,
+        repos.leadAttributions,
+        audit,
+      ),
+      payouts: new PayoutService(repos.leads, repos.payouts, repos.commissions, audit),
+      inquiries: new InquiryService(repos.inquiries, notifier),
     };
   }
   return services;
@@ -76,7 +101,9 @@ export function __resetServices(): void {
   services = null;
 }
 
-export { BuyerService } from '@/src/services/BuyerService';
+export { ClientService } from '@/src/services/ClientService';
+export { ProductService } from '@/src/services/ProductService';
+export { CampaignService } from '@/src/services/CampaignService';
 export { PublisherService } from '@/src/services/PublisherService';
 export { OfferService } from '@/src/services/OfferService';
 export { AttributionService } from '@/src/services/AttributionService';
@@ -85,4 +112,4 @@ export { PublisherPortalService } from '@/src/services/PublisherPortalService';
 export { AuditService } from '@/src/services/AuditService';
 export { CommissionService } from '@/src/services/CommissionService';
 export { PayoutService } from '@/src/services/PayoutService';
-export { ContactService } from '@/src/services/ContactService';
+export { InquiryService } from '@/src/services/InquiryService';

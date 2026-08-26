@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { NotFoundError } from '@/src/domain/errors';
-import type { PayoutRow } from '@/src/domain/types';
+import type { PayoutRow, PayoutStatus } from '@/src/domain/types';
 import type { PayoutRepo } from '@/src/repositories/interfaces';
 import { matchesFilter } from '@/src/repositories/memory/_util';
 
@@ -29,10 +29,14 @@ export class MemoryPayoutRepo implements PayoutRepo {
     return filter ? rows.filter((r) => matchesFilter(r, filter)) : rows;
   }
 
-  async markPaid(id: string): Promise<PayoutRow> {
+  async transition(
+    id: string,
+    status: PayoutStatus,
+    patch?: Partial<PayoutRow>,
+  ): Promise<PayoutRow> {
     const existing = this.store.get(id);
     if (!existing) throw new NotFoundError(`Payout ${id} not found`);
-    const updated: PayoutRow = { ...existing, status: 'paid', paidAt: new Date().toISOString() };
+    const updated: PayoutRow = { ...existing, ...patch, status, id: existing.id };
     this.store.set(id, updated);
     return updated;
   }

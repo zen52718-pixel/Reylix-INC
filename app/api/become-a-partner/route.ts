@@ -32,12 +32,15 @@ const AUDIENCE_LABEL: Record<string, string> = {
 };
 
 /**
- * Partner applications are recorded as contacts, not as Publisher records.
+ * Partner applications are recorded as INQUIRIES, not as Publisher records.
  *
- * Creating a real Publisher from a public form would put rows into the acquisition platform
- * before there is any admin screen to review or approve them, leaving applications stranded.
- * Capturing the interest is the honest V1 behaviour; promoting these to real publisher
- * applications belongs with the admin portal.
+ * Creating a real Publisher from a public form would put rows into the acquisition
+ * platform before there is any admin screen to review or approve them, leaving
+ * applications stranded. Capturing the interest is the honest V1 behaviour; promoting
+ * these to real publisher applications belongs with the admin portal.
+ *
+ * An Inquiry is also emphatically not a consumer Lead: it carries no attribution, no
+ * offer and no commission.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -57,26 +60,27 @@ export async function POST(request: NextRequest) {
     const input = parsed.data;
     if (input.hp) return jsonOk({ received: true });
 
-    const contact = await getServices().contact.create({
+    const inquiry = await getServices().inquiries.create({
       name: input.name,
       email: input.email,
       phone: input.phone,
       company: input.company,
       interestType: 'publisher',
-      message: buildApplication(input, request),
+      message: buildApplication(input),
+      consentGranted: true,
+      consentWording: CONSENT_PARTNER,
+      consentAt: new Date().toISOString(),
+      consentIp: clientIp(request),
     });
 
-    return jsonOk({ id: contact.id, received: true }, 201);
+    return jsonOk({ id: inquiry.id, received: true }, 201);
   } catch (err) {
     return errorResponse(err);
   }
 }
 
-/** Flatten the structured answers into the contact message so nothing is lost. */
-function buildApplication(
-  input: z.infer<typeof PartnerSchema>,
-  request: NextRequest,
-): string {
+/** Flatten the structured answers into the inquiry message so nothing is lost. */
+function buildApplication(input: z.infer<typeof PartnerSchema>): string {
   return [
     '--- partner application ---',
     `audience: ${AUDIENCE_LABEL[input.audienceType] ?? input.audienceType}`,
@@ -85,12 +89,6 @@ function buildApplication(
     '',
     'how they plan to promote:',
     input.promoDescription,
-    '',
-    '--- consent record ---',
-    'consent: granted',
-    `at: ${new Date().toISOString()}`,
-    `ip: ${clientIp(request)}`,
-    `wording: "${CONSENT_PARTNER}"`,
   ]
     .filter((line) => line !== null)
     .join('\n');

@@ -1,103 +1,120 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { NotFoundError } from '@/src/domain/errors';
-import type { RepositoryBundle } from '@/src/repositories/interfaces';
+/**
+ * Memory-adapter specifics.
+ *
+ * Shared behaviour lives in contract.test.ts. What is tested here is what only the memory
+ * adapter can be asked about: store isolation, and that it refuses the same things the
+ * Postgres unique indexes refuse. If the two disagree, the contract test is lying about
+ * their equivalence.
+ */
+import { describe, expect, it } from 'vitest';
+import { ConflictError } from '@/src/domain/errors';
 import { createMemoryRepositories } from '@/src/repositories/memory';
+import { seedChain } from '@/tests/support/fixtures';
 
 describe('memory adapter', () => {
-  let repos: RepositoryBundle;
+  it('returns fully isolated stores per bundle', async () => {
+    const a = createMemoryRepositories();
+    const b = createMemoryRepositories();
 
-  beforeEach(() => {
-    repos = createMemoryRepositories();
+    await seedChain({ repos: a });
+    expect(await a.clients.list()).toHaveLength(1);
+    expect(await b.clients.list()).toHaveLength(0);
   });
 
-  it('creates and reads back a publisher by id and code', async () => {
-    const created = await repos.publishers.create({
-      publisherCode: 'AHMED',
-      fullName: 'Ahmed Khan',
-      email: 'ahmed@example.com',
-      phone: '+15551234567',
-      status: 'pending',
-    });
-
-    expect(created.id).toBeTruthy();
-    expect(created.createdAt).toBeTruthy();
-    expect(await repos.publishers.getById(created.id)).toEqual(created);
-    expect(await repos.publishers.getByCode('ahmed')).toEqual(created); // case-insensitive
-  });
-
-  it('lists only active offers', async () => {
-    await repos.offers.create({
-      buyerId: 'buyer-1',
-      offerCode: 'MVA1',
-      name: 'Motor Vehicle Accident',
-      destinationUrl: 'https://lawcaseconnect.com',
-      commissionAmount: 5000,
-      currency: 'USD',
-      isActive: true,
-    });
-    await repos.offers.create({
-      buyerId: 'buyer-1',
-      offerCode: 'OLD1',
-      name: 'Retired offer',
-      destinationUrl: 'https://example.com',
-      commissionAmount: 0,
-      currency: 'USD',
-      isActive: false,
-    });
-
-    const active = await repos.offers.listActive();
-    expect(active).toHaveLength(1);
-    expect(active[0]?.offerCode).toBe('MVA1');
-  });
-
-  it('dedups clicks within the window but not outside it', async () => {
-    // Use an explicitly old click so the assertions are independent of execution speed.
-    const sixtySecondsAgo = Date.now() - 60_000;
-    await repos.clicks.append({
-      refCode: 'AHMED-MVA1',
-      publisherId: 'p1',
-      offerId: 'o1',
-      clickedAt: new Date(sixtySecondsAgo).toISOString(),
-      dedupKey: 'key-1',
-      isUnique: true,
-    });
-
-    // a 2-minute window includes a 60s-old click...
-    expect(await repos.clicks.recentDedup('key-1', 2 * 60 * 1000)).toBe(true);
-    // ...a 30-second window does not.
-    expect(await repos.clicks.recentDedup('key-1', 30 * 1000)).toBe(false);
-    // an unknown dedup key never matches.
-    expect(await repos.clicks.recentDedup('other', 2 * 60 * 1000)).toBe(false);
-  });
-
-  it('appends a lead and updates its status in place', async () => {
-    const lead = await repos.leads.append({
-      publisherId: 'p1',
-      offerId: 'o1',
-      refCode: 'AHMED-MVA1',
-      buyerId: 'buyer-1',
-      attributionSource: 'param',
+  it('refuses a second live attribution for one lead', async () => {
+    const chain = await seedChain();
+    const lead = await chain.repos.leads.append({
+      publisherId: chain.publisherId,
+      offerId: chain.offerId,
+      clientId: chain.clientId,
+      productId: chain.productId,
+      campaignId: chain.campaignId,
+      refCode: chain.refCode,
       status: 'new',
-      commissionAmount: 0,
-      capturedData: { name: 'Test', phone: '555' },
+      capturedData: {},
       createdAt: new Date().toISOString(),
     });
 
-    const approved = await repos.leads.updateStatus(lead.id, 'approved', {
-      commissionAmount: 5000,
+    const row = {
+      leadId: lead.id,
+      publisherId: chain.publisherId,
+      offerId: chain.offerId,
+      clientId: chain.clientId,
+      source: 'param' as const,
+      attributedAt: new Date().toISOString(),
+    };
+    await chain.repos.leadAttributions.append(row);
+
+    // Mirrors the unique partial index `lead_attributions_one_live_per_lead`.
+    await expect(chain.repos.leadAttributions.append(row)).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('refuses a second live commission for one lead', async () => {
+    const chain = await seedChain();
+    const lead = await chain.repos.leads.append({
+      publisherId: chain.publisherId,
+      offerId: chain.offerId,
+      clientId: chain.clientId,
+      productId: chain.productId,
+      campaignId: chain.campaignId,
+      refCode: chain.refCode,
+      status: 'approved',
+      capturedData: {},
+      createdAt: new Date().toISOString(),
       approvedAt: new Date().toISOString(),
     });
 
-    expect(approved.status).toBe('approved');
-    expect(approved.commissionAmount).toBe(5000);
+    const row = {
+      leadId: lead.id,
+      publisherId: chain.publisherId,
+      offerId: chain.offerId,
+      clientId: chain.clientId,
+      amount: 5000,
+      currency: 'USD',
+      model: 'flat' as const,
+      status: 'payable' as const,
+      createdAt: new Date().toISOString(),
+    };
+    await chain.repos.commissions.create(row);
 
-    const onlyApproved = await repos.leads.list({ status: 'approved' });
-    expect(onlyApproved).toHaveLength(1);
+    // Paying twice for one lead is the failure this guard exists to prevent.
+    await expect(chain.repos.commissions.create(row)).rejects.toBeInstanceOf(ConflictError);
   });
 
-  it('throws NotFoundError when updating a missing row', async () => {
-    await expect(repos.publishers.update('nope', { status: 'active' })).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
+  it('allows a new commission once the previous one is voided', async () => {
+    const chain = await seedChain();
+    const lead = await chain.repos.leads.append({
+      publisherId: chain.publisherId,
+      offerId: chain.offerId,
+      clientId: chain.clientId,
+      productId: chain.productId,
+      campaignId: chain.campaignId,
+      refCode: chain.refCode,
+      status: 'approved',
+      capturedData: {},
+      createdAt: new Date().toISOString(),
+      approvedAt: new Date().toISOString(),
+    });
+    const base = {
+      leadId: lead.id,
+      publisherId: chain.publisherId,
+      offerId: chain.offerId,
+      clientId: chain.clientId,
+      currency: 'USD',
+      model: 'flat' as const,
+      status: 'payable' as const,
+      createdAt: new Date().toISOString(),
+    };
+
+    const first = await chain.repos.commissions.create({ ...base, amount: 5000 });
+    await chain.repos.commissions.update(first.id, {
+      status: 'void',
+      voidReason: 'client reversed',
+    });
+
+    // A correction is a void plus a new record — so the replacement must be allowed.
+    const replacement = await chain.repos.commissions.create({ ...base, amount: 2500 });
+    expect(replacement.amount).toBe(2500);
+    expect((await chain.repos.commissions.getLiveForLead(lead.id))?.id).toBe(replacement.id);
   });
 });

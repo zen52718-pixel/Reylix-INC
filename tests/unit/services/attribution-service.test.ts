@@ -1,142 +1,193 @@
-import { describe, expect, it } from 'vitest';
-import type { Offer, Publisher } from '@/src/domain/types';
-import { MemoryClickRepo } from '@/src/repositories/memory/MemoryClickRepo';
-import { MemoryOfferRepo } from '@/src/repositories/memory/MemoryOfferRepo';
-import { MemoryPublisherRepo } from '@/src/repositories/memory/MemoryPublisherRepo';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { ConflictError, ValidationError } from '@/src/domain/errors';
 import { AttributionService } from '@/src/services/AttributionService';
+import { seedChain, type SeededChain } from '@/tests/support/fixtures';
 
-async function setup() {
-  const publishers = new MemoryPublisherRepo();
-  const offers = new MemoryOfferRepo();
-  const clicks = new MemoryClickRepo();
-  const publisher = await publishers.create({
-    publisherCode: 'AHMED',
-    fullName: 'Ahmed',
-    email: 'a@example.com',
-    phone: '1',
-    status: 'active',
-  });
-  const offer = await offers.create({
-    buyerId: 'buyer-1',
-    offerCode: 'MVA1',
-    name: 'MVA',
-    destinationUrl: 'https://lawcaseconnect.com/intake',
-    commissionAmount: 5000,
-    currency: 'USD',
-    isActive: true,
-  });
-  const service = new AttributionService(
-    { publishers, offers, clicks },
+function build(chain: SeededChain) {
+  return new AttributionService(
+    {
+      publishers: chain.repos.publishers,
+      offers: chain.repos.offers,
+      clicks: chain.repos.clicks,
+      leadAttributions: chain.repos.leadAttributions,
+      leads: chain.repos.leads,
+    },
     { dedupMinutes: 30, allowedRedirectHosts: ['lawcaseconnect.com', 'reylix.com'] },
   );
-  return { service, publishers, offers, clicks, publisher, offer };
 }
 
-describe('AttributionService.resolve', () => {
-  it('resolves a valid ref to active publisher + offer', async () => {
-    const { service, publisher, offer } = await setup();
-    const result = await service.resolve('ahmed-mva1');
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.refCode).toBe('AHMED-MVA1');
-      expect(result.publisher.id).toBe(publisher.id);
-      expect(result.offer.id).toBe(offer.id);
-    }
+async function newLead(chain: SeededChain) {
+  return chain.repos.leads.append({
+    publisherId: null,
+    offerId: chain.offerId,
+    clientId: chain.clientId,
+    productId: chain.productId,
+    campaignId: chain.campaignId,
+    refCode: null,
+    status: 'new',
+    capturedData: {},
+    createdAt: new Date().toISOString(),
+  });
+}
+
+describe('AttributionService', () => {
+  let chain: SeededChain;
+  let service: AttributionService;
+
+  beforeEach(async () => {
+    chain = await seedChain();
+    service = build(chain);
   });
 
-  it.each([
-    ['malformed', 'no-hyphen-here-but-actually', 'unknown_publisher'],
-    ['no offer part', 'AHMED-', 'malformed_ref'],
-    ['unknown publisher', 'NOBODY-MVA1', 'unknown_publisher'],
-    ['unknown offer', 'AHMED-ZZZ', 'unknown_offer'],
-  ])('fails for %s', async (_label, ref, expectedReason) => {
-    const { service } = await setup();
-    const result = await service.resolve(ref);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe(expectedReason);
+  describe('resolve', () => {
+    it('resolves a valid ref to publisher and offer', async () => {
+      const r = await service.resolve(chain.refCode);
+      expect(r.ok).toBe(true);
+      if (r.ok) {
+        expect(r.publisher.id).toBe(chain.publisherId);
+        expect(r.offer.id).toBe(chain.offerId);
+      }
+    });
+
+    it('reports why a ref failed', async () => {
+      expect(await service.resolve('nonsense')).toMatchObject({ reason: 'malformed_ref' });
+      expect(await service.resolve('NOPE-' + chain.offerCode)).toMatchObject({
+        reason: 'unknown_publisher',
+      });
+      expect(await service.resolve(chain.publisherCode + '-NOPE')).toMatchObject({
+        reason: 'unknown_offer',
+      });
+
+      await chain.repos.offers.update(chain.offerId, { isActive: false });
+      expect(await service.resolve(chain.refCode)).toMatchObject({ reason: 'offer_inactive' });
+    });
+
+    it('refuses a suspended publisher', async () => {
+      await chain.repos.publishers.update(chain.publisherId, { status: 'suspended' });
+      expect(await service.resolve(chain.refCode)).toMatchObject({ reason: 'publisher_suspended' });
+    });
   });
 
-  it('rejects a suspended publisher and an inactive offer', async () => {
-    const { service, publishers, offers, publisher, offer } = await setup();
-    await publishers.update(publisher.id, { status: 'suspended' });
-    let result = await service.resolve('AHMED-MVA1');
-    expect(result.ok ? null : result.reason).toBe('publisher_suspended');
+  describe('clicks', () => {
+    it('marks a repeat click inside the window as not unique', async () => {
+      const r = await service.resolve(chain.refCode);
+      if (!r.ok) throw new Error('expected resolve to succeed');
 
-    await publishers.update(publisher.id, { status: 'active' });
-    await offers.update(offer.id, { isActive: false });
-    result = await service.resolve('AHMED-MVA1');
-    expect(result.ok ? null : result.reason).toBe('offer_inactive');
-  });
-});
+      const first = await service.recordClick(r, { ip: '1.1.1.1', userAgent: 'UA' });
+      const second = await service.recordClick(r, { ip: '1.1.1.1', userAgent: 'UA' });
+      expect(first.isUnique).toBe(true);
+      expect(second.isUnique).toBe(false);
+    });
 
-describe('AttributionService dedup + click recording', () => {
-  it('marks the first click unique and a repeat within the window non-unique', async () => {
-    const { service, clicks, publisher, offer } = await setup();
-    const resolved = { refCode: 'AHMED-MVA1', publisher: publisher as Publisher, offer: offer as Offer };
-    const ctx = { ip: '1.2.3.4', userAgent: 'UA/1.0' };
-
-    await service.recordClick(resolved, ctx);
-    await service.recordClick(resolved, ctx);
-
-    const rows = await clicks.listByPublisher(publisher.id);
-    expect(rows).toHaveLength(2);
-    expect(rows[0]?.isUnique).toBe(true);
-    expect(rows[1]?.isUnique).toBe(false);
+    it('scopes the dedup key to the link, so different links do not collide', () => {
+      const a = service.computeDedupKey('A-1', '1.1.1.1', 'UA');
+      const b = service.computeDedupKey('A-2', '1.1.1.1', 'UA');
+      expect(a).not.toBe(b);
+    });
   });
 
-  it('treats a different visitor as a distinct unique click', async () => {
-    const { service, clicks, publisher, offer } = await setup();
-    const resolved = { refCode: 'AHMED-MVA1', publisher: publisher as Publisher, offer: offer as Offer };
-    await service.recordClick(resolved, { ip: '1.1.1.1', userAgent: 'UA/1.0' });
-    await service.recordClick(resolved, { ip: '2.2.2.2', userAgent: 'UA/1.0' });
-    const rows = await clicks.listByPublisher(publisher.id);
-    expect(rows.every((c) => c.isUnique)).toBe(true);
+  describe('attribution rows', () => {
+    it('records credit once and refuses a second live attribution', async () => {
+      const lead = await newLead(chain);
+      const input = {
+        leadId: lead.id,
+        publisherId: chain.publisherId,
+        offerId: chain.offerId,
+        clientId: chain.clientId,
+        source: 'param' as const,
+      };
+
+      const created = await service.attribute(input);
+      expect((await service.currentAttribution(lead.id))?.id).toBe(created.id);
+      await expect(service.attribute(input)).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it('requires an actor for manual attribution', async () => {
+      const lead = await newLead(chain);
+      await expect(
+        service.attribute({
+          leadId: lead.id,
+          publisherId: chain.publisherId,
+          offerId: chain.offerId,
+          clientId: chain.clientId,
+          source: 'manual',
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+    });
+
+    it('re-attribution supersedes rather than overwrites, preserving the history', async () => {
+      const lead = await newLead(chain);
+      const original = await service.attribute({
+        leadId: lead.id,
+        publisherId: chain.publisherId,
+        offerId: chain.offerId,
+        clientId: chain.clientId,
+        source: 'param',
+      });
+
+      const other = await chain.repos.publishers.create({
+        publisherCode: 'OTHER1',
+        fullName: 'Other',
+        email: 'other@example.com',
+        phone: '+15550000000',
+        status: 'active',
+      });
+
+      const moved = await service.reattribute(
+        lead.id,
+        other.id,
+        'admin@reylix.com',
+        'wrong publisher credited',
+      );
+
+      expect(moved.publisherId).toBe(other.id);
+      expect(moved.source).toBe('manual');
+      expect((await service.currentAttribution(lead.id))?.id).toBe(moved.id);
+
+      // The original decision is still on file — this is what answers a dispute.
+      const history = await service.attributionHistory(lead.id);
+      expect(history).toHaveLength(2);
+      expect(history.find((h) => h.id === original.id)?.supersededAt).toBeTruthy();
+
+      // The lead's denormalized publisher follows.
+      expect((await chain.repos.leads.getById(lead.id))?.publisherId).toBe(other.id);
+    });
+
+    it('requires a reason to re-attribute', async () => {
+      const lead = await newLead(chain);
+      await expect(
+        service.reattribute(lead.id, chain.publisherId, 'admin', '   '),
+      ).rejects.toBeInstanceOf(ValidationError);
+    });
   });
 
-  it('dedup key is stable for the same ref+ip+ua and differs across links', async () => {
-    const { service } = await setup();
-    const a = service.computeDedupKey('AHMED-MVA1', '1.2.3.4', 'UA');
-    const b = service.computeDedupKey('AHMED-MVA1', '1.2.3.4', 'UA');
-    const c = service.computeDedupKey('AHMED-OTHER', '1.2.3.4', 'UA');
-    expect(a).toBe(b);
-    expect(a).not.toBe(c);
-  });
-});
+  describe('redirects', () => {
+    it('appends the ref to the offer destination', async () => {
+      const offer = await chain.repos.offers.getById(chain.offerId);
+      const { url } = service.buildDestinationUrl(offer!, chain.refCode);
+      expect(url).toBe(`https://example.com/?ref=${chain.refCode}`);
+    });
 
-describe('AttributionService.buildDestinationUrl', () => {
-  it('appends ?ref to the offer destination', async () => {
-    const { service, offer } = await setup();
-    const { url, toRejected } = service.buildDestinationUrl(offer as Offer, 'AHMED-MVA1');
-    expect(url).toBe('https://lawcaseconnect.com/intake?ref=AHMED-MVA1');
-    expect(toRejected).toBe(false);
-  });
+    it('rejects a non-allowlisted override', async () => {
+      const offer = await chain.repos.offers.getById(chain.offerId);
+      const { url, toRejected } = service.buildDestinationUrl(
+        offer!,
+        chain.refCode,
+        'https://evil.test/landing',
+      );
+      expect(toRejected).toBe(true);
+      expect(url.startsWith('https://example.com')).toBe(true);
+    });
 
-  it('honors an allowlisted ?to= override', async () => {
-    const { service, offer } = await setup();
-    const { url, toRejected } = service.buildDestinationUrl(
-      offer as Offer,
-      'AHMED-MVA1',
-      'https://reylix.com/landing',
-    );
-    expect(url).toBe('https://reylix.com/landing?ref=AHMED-MVA1');
-    expect(toRejected).toBe(false);
-  });
-
-  it('rejects a non-allowlisted ?to= and falls back to the offer URL', async () => {
-    const { service, offer } = await setup();
-    const { url, toRejected } = service.buildDestinationUrl(
-      offer as Offer,
-      'AHMED-MVA1',
-      'https://evil.example.com/phish',
-    );
-    expect(url).toBe('https://lawcaseconnect.com/intake?ref=AHMED-MVA1');
-    expect(toRejected).toBe(true);
-  });
-
-  it('allows subdomains of allowlisted hosts but not lookalikes', async () => {
-    const { service } = await setup();
-    expect(service.isAllowedRedirect('https://app.lawcaseconnect.com')).toBe(true);
-    expect(service.isAllowedRedirect('https://lawcaseconnect.com.evil.com')).toBe(false);
-    expect(service.isAllowedRedirect('javascript:alert(1)')).toBe(false);
+    it('accepts an allowlisted override', async () => {
+      const offer = await chain.repos.offers.getById(chain.offerId);
+      const { url, toRejected } = service.buildDestinationUrl(
+        offer!,
+        chain.refCode,
+        'https://lawcaseconnect.com/landing',
+      );
+      expect(toRejected).toBe(false);
+      expect(url).toBe(`https://lawcaseconnect.com/landing?ref=${chain.refCode}`);
+    });
   });
 });

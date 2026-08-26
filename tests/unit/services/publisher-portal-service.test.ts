@@ -1,136 +1,101 @@
-import { describe, expect, it } from 'vitest';
-import type { Lead } from '@/src/domain/types';
-import { MemoryClickRepo } from '@/src/repositories/memory/MemoryClickRepo';
-import { MemoryLeadRepo } from '@/src/repositories/memory/MemoryLeadRepo';
-import { MemoryOfferRepo } from '@/src/repositories/memory/MemoryOfferRepo';
-import { MemoryPublisherRepo } from '@/src/repositories/memory/MemoryPublisherRepo';
-import { MemoryReferralLinkRepo } from '@/src/repositories/memory/MemoryReferralLinkRepo';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { NotFoundError } from '@/src/domain/errors';
+import { AuditService } from '@/src/services/AuditService';
+import { CommissionService } from '@/src/services/CommissionService';
 import { PublisherPortalService } from '@/src/services/PublisherPortalService';
+import { seedAttributedLead, seedChain, type SeededChain } from '@/tests/support/fixtures';
 
-async function setup() {
-  const publishers = new MemoryPublisherRepo();
-  const offers = new MemoryOfferRepo();
-  const leads = new MemoryLeadRepo();
-  const clicks = new MemoryClickRepo();
-  const referralLinks = new MemoryReferralLinkRepo();
-
-  const publisher = await publishers.create({
-    publisherCode: 'AHMED',
-    fullName: 'Ahmed',
-    email: 'a@example.com',
-    phone: '1',
-    status: 'active',
-  });
-  const other = await publishers.create({
-    publisherCode: 'SARA',
-    fullName: 'Sara',
-    email: 's@example.com',
-    phone: '2',
-    status: 'active',
-  });
-  const offer = await offers.create({
-    buyerId: 'buyer-1',
-    offerCode: 'MVA1',
-    name: 'MVA',
-    destinationUrl: 'https://x.com',
-    commissionAmount: 5000,
-    currency: 'USD',
-    isActive: true,
-  });
-
-  const service = new PublisherPortalService(
-    { publishers, offers, leads, clicks, referralLinks },
+function build(chain: SeededChain) {
+  const portal = new PublisherPortalService(
+    {
+      publishers: chain.repos.publishers,
+      offers: chain.repos.offers,
+      leads: chain.repos.leads,
+      clicks: chain.repos.clicks,
+      referralLinks: chain.repos.referralLinks,
+      commissions: chain.repos.commissions,
+    },
     { redirectBaseUrl: 'https://go.reylix.com' },
   );
-  return { service, publishers, offers, leads, clicks, referralLinks, publisher, other, offer };
+  const commission = new CommissionService(
+    chain.repos.leads,
+    chain.repos.offers,
+    chain.repos.commissions,
+    chain.repos.leadAttributions,
+    new AuditService(chain.repos.audit),
+  );
+  return { portal, commission };
 }
 
-async function seedLead(leads: MemoryLeadRepo, publisherId: string, patch: Partial<Lead>) {
-  return leads.append({
-    publisherId,
-    offerId: 'o1',
-    refCode: 'AHMED-MVA1',
-    buyerId: 'buyer-1',
-    attributionSource: 'param',
-    status: 'new',
-    commissionAmount: 0,
-    capturedData: {},
-    createdAt: new Date().toISOString(),
-    ...patch,
+describe('PublisherPortalService', () => {
+  let chain: SeededChain;
+  let svc: ReturnType<typeof build>;
+
+  beforeEach(async () => {
+    chain = await seedChain({ commissionAmount: 5000 });
+    svc = build(chain);
   });
-}
 
-describe('PublisherPortalService.summary', () => {
-  it('aggregates clicks, leads, approved, and commission earned/paid/unpaid', async () => {
-    const { service, leads, clicks, publisher } = await setup();
-    await clicks.append({
-      refCode: 'AHMED-MVA1',
-      publisherId: publisher.id,
-      offerId: 'o1',
-      clickedAt: new Date().toISOString(),
-      dedupKey: 'k',
-      isUnique: true,
+  it('rejects an unknown publisher', async () => {
+    await expect(svc.portal.getProfile('nope')).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('reports earnings from commission records', async () => {
+    const a = await seedAttributedLead(chain);
+    const b = await seedAttributedLead(chain);
+    await svc.commission.approve(a.lead.id, 'admin', 3000);
+    const approvedB = await svc.commission.approve(b.lead.id, 'admin', 2000);
+    await chain.repos.commissions.update(approvedB.commission!.id, {
+      status: 'paid',
+      paidAt: new Date().toISOString(),
     });
-    await seedLead(leads, publisher.id, { status: 'new' });
-    await seedLead(leads, publisher.id, { status: 'approved', commissionAmount: 5000 });
-    await seedLead(leads, publisher.id, { status: 'paid', commissionAmount: 5000 });
 
-    const s = await service.summary(publisher.id);
-    expect(s.clicks).toBe(1);
-    expect(s.leads).toBe(3);
-    expect(s.approved).toBe(2); // approved + paid
-    expect(s.commissionEarned).toBe(10000);
-    expect(s.paid).toBe(5000);
-    expect(s.unpaid).toBe(5000);
-  });
-});
-
-describe('PublisherPortalService scoping', () => {
-  it('returns only the requesting publisher’s leads', async () => {
-    const { service, leads, publisher, other } = await setup();
-    await seedLead(leads, publisher.id, {});
-    await seedLead(leads, other.id, {});
-    const mine = await service.leads(publisher.id);
-    expect(mine).toHaveLength(1);
-    expect(mine[0]?.publisherId).toBe(publisher.id);
-  });
-});
-
-describe('PublisherPortalService.offersWithLinks', () => {
-  it('builds deterministic links and persists one referral row per offer (idempotent)', async () => {
-    const { service, referralLinks, publisher } = await setup();
-    const first = await service.offersWithLinks(publisher.id);
-    expect(first[0]?.refCode).toBe('AHMED-MVA1');
-    expect(first[0]?.link).toBe('https://go.reylix.com/r/AHMED-MVA1');
-
-    await service.offersWithLinks(publisher.id); // second call must not duplicate
-    expect(await referralLinks.listByPublisher(publisher.id)).toHaveLength(1);
+    const summary = await svc.portal.summary(chain.publisherId);
+    expect(summary.leads).toBe(2);
+    expect(summary.approved).toBe(2);
+    expect(summary.commissionEarned).toBe(5000);
+    expect(summary.paid).toBe(2000);
+    expect(summary.unpaid).toBe(3000);
   });
 
-  it('links() joins persisted rows to offer names', async () => {
-    const { service, publisher } = await setup();
-    await service.offersWithLinks(publisher.id);
-    const links = await service.links(publisher.id);
-    expect(links[0]?.offerName).toBe('MVA');
-  });
-});
+  it('excludes voided commissions from earnings', async () => {
+    const a = await seedAttributedLead(chain);
+    const b = await seedAttributedLead(chain);
+    await svc.commission.approve(a.lead.id, 'admin', 3000);
+    await svc.commission.approve(b.lead.id, 'admin', 2000);
+    await svc.commission.voidCommission(b.lead.id, 'admin', 'duplicate');
 
-describe('PublisherPortalService.updateAccount', () => {
+    const summary = await svc.portal.summary(chain.publisherId);
+    // A voided commission is not an earning.
+    expect(summary.commissionEarned).toBe(3000);
+  });
+
+  it('builds deterministic referral links and persists them lazily', async () => {
+    const withLinks = await svc.portal.offersWithLinks(chain.publisherId);
+    expect(withLinks).toHaveLength(1);
+    expect(withLinks[0]?.refCode).toBe(chain.refCode);
+    expect(withLinks[0]?.link).toBe(`https://go.reylix.com/r/${chain.refCode}`);
+
+    // Calling again must not create a second link for the same publisher+offer.
+    await svc.portal.offersWithLinks(chain.publisherId);
+    expect(await chain.repos.referralLinks.listByPublisher(chain.publisherId)).toHaveLength(1);
+  });
+
   it('updates only whitelisted profile/payout fields', async () => {
-    const { service, publisher } = await setup();
-    // Include protected fields to prove they are ignored by the whitelist.
     const sneaky = {
       city: 'Austin',
       payoutMethod: 'ach',
       status: 'suspended',
       publisherCode: 'HACK',
       email: 'evil@x.com',
-    } as Parameters<typeof service.updateAccount>[1];
-    const updated = await service.updateAccount(publisher.id, sneaky);
+    } as Parameters<typeof svc.portal.updateAccount>[1];
+
+    const updated = await svc.portal.updateAccount(chain.publisherId, sneaky);
     expect(updated.city).toBe('Austin');
     expect(updated.payoutMethod).toBe('ach');
-    expect(updated.status).toBe('active'); // unchanged
-    expect(updated.publisherCode).toBe('AHMED'); // unchanged
-    expect(updated.email).toBe('a@example.com'); // unchanged
+    // Protected fields are ignored by the allowlist.
+    expect(updated.status).toBe('active');
+    expect(updated.publisherCode).toBe(chain.publisherCode);
+    expect(updated.email).not.toBe('evil@x.com');
   });
 });

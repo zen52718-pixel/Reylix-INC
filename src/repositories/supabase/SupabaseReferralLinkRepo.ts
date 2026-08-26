@@ -7,6 +7,12 @@ import { referralLinkFromRow, referralLinkToRow } from '@/src/repositories/supab
 const TABLE = 'referral_links';
 
 export class SupabaseReferralLinkRepo implements ReferralLinkRepo {
+  async getById(id: string): Promise<ReferralLink | null> {
+    const res = await getServiceClient().from(TABLE).select('*').eq('id', id).single();
+    const row = maybeRow(res as never, 'referralLinks.getById');
+    return row ? referralLinkFromRow(row) : null;
+  }
+
   async getByCode(refCode: string): Promise<ReferralLink | null> {
     const res = await getServiceClient()
       .from(TABLE)

@@ -4,7 +4,7 @@ import { rows } from '@/src/repositories/supabase/_util';
 import { getServiceClient } from '@/src/repositories/supabase/client';
 import { auditFromRow, auditToRow } from '@/src/repositories/supabase/mappers';
 
-const TABLE = 'audit';
+const TABLE = 'audit_entries';
 
 export class SupabaseAuditRepo implements AuditRepo {
   async append(entry: Omit<AuditEntry, 'id'>): Promise<void> {

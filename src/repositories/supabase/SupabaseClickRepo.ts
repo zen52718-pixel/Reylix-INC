@@ -1,17 +1,19 @@
 import type { Click } from '@/src/domain/types';
 import type { ClickRepo, DateRange } from '@/src/repositories/interfaces';
-import { rows } from '@/src/repositories/supabase/_util';
+import { requireRow, rows } from '@/src/repositories/supabase/_util';
 import { getServiceClient } from '@/src/repositories/supabase/client';
 import { clickFromRow, clickToRow } from '@/src/repositories/supabase/mappers';
 
 const TABLE = 'clicks';
 
 export class SupabaseClickRepo implements ClickRepo {
-  async append(c: Omit<Click, 'id'>): Promise<void> {
+  async append(c: Omit<Click, 'id'>): Promise<Click> {
     const res = await getServiceClient()
       .from(TABLE)
-      .insert(clickToRow(c as Partial<Click>));
-    rows(res as never, 'clicks.append');
+      .insert(clickToRow(c as Partial<Click>))
+      .select('*')
+      .single();
+    return clickFromRow(requireRow(res as never, 'clicks.append', 'inserted row'));
   }
 
   async listByPublisher(publisherId: string, range?: DateRange): Promise<Click[]> {

@@ -1,15 +1,20 @@
 /**
- * PublisherPortalService (Blueprint Sprint 4) — every read/write is scoped to a single
- * publisherId that the caller derives from the verified session. This service IS the
- * "server-side publisher scoping" RLS substitute (§3.4): a publisher can never see or mutate
- * another publisher's rows because publisherId is a required argument, never taken from input.
- * Storage-agnostic (depends only on repo interfaces).
+ * PublisherPortalService — every read and write is scoped to a single publisherId that
+ * the caller derives from the verified session.
+ *
+ * This service IS the server-side publisher scoping. The repository layer runs on the
+ * service-role key and therefore BYPASSES RLS, so a missing scope here is not caught by
+ * the database. That is why publisherId is a required argument on every method and is
+ * never taken from caller-supplied input.
+ *
+ * Storage-agnostic (depends only on repository interfaces).
  */
 import { NotFoundError } from '@/src/domain/errors';
 import type { Lead, LeadStatus, Offer, Publisher } from '@/src/domain/types';
 import { formatRefCode } from '@/src/domain/value-objects';
 import type {
   ClickRepo,
+  CommissionRepo,
   DateRange,
   LeadRepo,
   OfferRepo,
@@ -23,6 +28,7 @@ export interface PublisherPortalDeps {
   leads: LeadRepo;
   clicks: ClickRepo;
   referralLinks: ReferralLinkRepo;
+  commissions: CommissionRepo;
 }
 
 export interface PublisherPortalConfig {
@@ -74,18 +80,25 @@ export class PublisherPortalService {
     return this.requirePublisher(publisherId);
   }
 
-  /** Headline metrics for the dashboard (clicks/leads/approved + commission earned/paid/unpaid). */
+  /**
+   * Headline metrics. Earnings come from COMMISSION records rather than from the lead
+   * row, so what a publisher sees is the same money the payout run will pay.
+   */
   async summary(publisherId: string, range?: DateRange): Promise<PublisherSummary> {
     await this.requirePublisher(publisherId);
-    const [clickList, leadList] = await Promise.all([
+    const [clickList, leadList, commissionList] = await Promise.all([
       this.deps.clicks.listByPublisher(publisherId, range),
       this.deps.leads.list({ publisherId, from: range?.from, to: range?.to }),
+      this.deps.commissions.list({ publisherId }),
     ]);
 
     const approvedOrPaid = leadList.filter((l) => l.status === 'approved' || l.status === 'paid');
-    const paidLeads = leadList.filter((l) => l.status === 'paid');
-    const commissionEarned = sum(approvedOrPaid.map((l) => l.commissionAmount));
-    const paid = sum(paidLeads.map((l) => l.commissionAmount));
+    // Voided and clawed-back commissions are excluded: they are not earnings.
+    const live = commissionList.filter(
+      (c) => c.status === 'payable' || c.status === 'processing' || c.status === 'paid',
+    );
+    const commissionEarned = sum(live.map((c) => c.amount));
+    const paid = sum(live.filter((c) => c.status === 'paid').map((c) => c.amount));
 
     return {
       clicks: clickList.length,
@@ -97,7 +110,7 @@ export class PublisherPortalService {
     };
   }
 
-  /** Active offers, each with this publisher's deterministic ref code + link (lazily persisted). */
+  /** Active offers, each with this publisher's deterministic ref code + link. */
   async offersWithLinks(publisherId: string): Promise<OfferWithLink[]> {
     const publisher = await this.requirePublisher(publisherId);
     const offers = await this.deps.offers.listActive();
@@ -129,7 +142,7 @@ export class PublisherPortalService {
     return views;
   }
 
-  /** This publisher's leads (read-only). publisherId is forced — any caller-supplied value is ignored. */
+  /** This publisher's leads. publisherId is forced — any caller-supplied value is ignored. */
   async leads(
     publisherId: string,
     filter?: { status?: LeadStatus; from?: string; to?: string },

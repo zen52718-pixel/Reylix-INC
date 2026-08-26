@@ -5,6 +5,10 @@ import type { ReferralLinkRepo } from '@/src/repositories/interfaces';
 export class MemoryReferralLinkRepo implements ReferralLinkRepo {
   private readonly store = new Map<string, ReferralLink>();
 
+  async getById(id: string): Promise<ReferralLink | null> {
+    return this.store.get(id) ?? null;
+  }
+
   async getByCode(refCode: string): Promise<ReferralLink | null> {
     const target = refCode.trim().toUpperCase();
     for (const r of this.store.values()) {

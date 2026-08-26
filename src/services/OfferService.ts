@@ -1,29 +1,40 @@
 /**
- * OfferService (Blueprint Sprint 1) — all offer business logic. Storage-agnostic:
- * depends only on the OfferRepo interface. Enforces unique offer_code, defaults currency
- * to USD and new offers to active, validates a non-negative flat commission, and
- * requires every offer to name the buyer that owns it.
+ * OfferService — the commercial unit that binds a campaign (and through it a product) to
+ * a client at a price.
+ *
+ * The client relationship lives HERE and nowhere higher: a Product must stay reusable
+ * across every client, so an offer is the point where "this product, this client, this
+ * price" is stated.
+ *
+ * Storage-agnostic: depends only on repository interfaces.
  */
-import { ConflictError, ValidationError } from '@/src/domain/errors';
-import type { Offer } from '@/src/domain/types';
-import type { OfferRepo } from '@/src/repositories/interfaces';
+import { ConflictError, NotFoundError, ValidationError } from '@/src/domain/errors';
+import type { CommissionModel, Offer } from '@/src/domain/types';
+import { COMMISSION_MODELS, DEFAULT_CURRENCY } from '@/src/domain/types';
+import type { CampaignRepo, ClientRepo, OfferRepo } from '@/src/repositories/interfaces';
 
 export interface CreateOfferInput {
-  buyerId: string;
+  campaignId: string;
+  clientId: string;
   offerCode: string;
   name: string;
   destinationUrl: string;
   commissionAmount: number;
+  commissionModel?: CommissionModel;
   description?: string;
-  category?: string;
   currency?: string;
+  leadDedupWindowMinutes?: number;
   isActive?: boolean;
 }
 
 export type UpdateOfferInput = Partial<Omit<Offer, 'id' | 'createdAt'>>;
 
 export class OfferService {
-  constructor(private readonly offers: OfferRepo) {}
+  constructor(
+    private readonly offers: OfferRepo,
+    private readonly campaigns?: CampaignRepo,
+    private readonly clients?: ClientRepo,
+  ) {}
 
   async getById(id: string): Promise<Offer | null> {
     return this.offers.getById(id);
@@ -41,15 +52,21 @@ export class OfferService {
     return this.offers.listActive();
   }
 
-  async listByBuyer(buyerId: string): Promise<Offer[]> {
-    return this.offers.listByBuyer(buyerId);
+  async listByClient(clientId: string): Promise<Offer[]> {
+    return this.offers.listByClient(clientId);
+  }
+
+  async listByCampaign(campaignId: string): Promise<Offer[]> {
+    return this.offers.listByCampaign(campaignId);
   }
 
   async create(input: CreateOfferInput): Promise<Offer> {
-    const buyerId = requireField(input.buyerId, 'buyerId');
+    const campaignId = requireField(input.campaignId, 'campaignId');
+    const clientId = requireField(input.clientId, 'clientId');
     const offerCode = normalizeCode(requireField(input.offerCode, 'offerCode'));
     const name = requireField(input.name, 'name');
     const destinationUrl = requireField(input.destinationUrl, 'destinationUrl');
+
     if (!isHttpUrl(destinationUrl)) {
       throw new ValidationError('destinationUrl must be a valid http(s) URL', { destinationUrl });
     }
@@ -59,20 +76,35 @@ export class OfferService {
         commissionAmount,
       });
     }
+    const commissionModel = input.commissionModel ?? 'flat';
+    if (!COMMISSION_MODELS.includes(commissionModel)) {
+      throw new ValidationError('commissionModel is not a recognised model', { commissionModel });
+    }
+    assertDedupWindow(input.leadDedupWindowMinutes);
 
+    // Referential integrity is checked here as well as by the database foreign keys, so
+    // the memory adapter refuses the same thing Postgres would.
+    if (this.campaigns && !(await this.campaigns.getById(campaignId))) {
+      throw new NotFoundError('Campaign ' + campaignId + ' not found', { campaignId });
+    }
+    if (this.clients && !(await this.clients.getById(clientId))) {
+      throw new NotFoundError('Client ' + clientId + ' not found', { clientId });
+    }
     if (await this.offers.getByCode(offerCode)) {
-      throw new ConflictError(`Offer code ${offerCode} already exists`, { offerCode });
+      throw new ConflictError('Offer code ' + offerCode + ' already exists', { offerCode });
     }
 
     return this.offers.create({
-      buyerId,
+      campaignId,
+      clientId,
       offerCode,
       name,
       destinationUrl,
-      category: input.category,
       description: input.description,
+      commissionModel,
       commissionAmount,
-      currency: (input.currency ?? 'USD').toUpperCase(),
+      currency: (input.currency ?? DEFAULT_CURRENCY).toUpperCase(),
+      leadDedupWindowMinutes: input.leadDedupWindowMinutes,
       isActive: input.isActive ?? true,
     });
   }
@@ -84,7 +116,7 @@ export class OfferService {
       next.offerCode = normalizeCode(next.offerCode);
       const clash = await this.offers.getByCode(next.offerCode);
       if (clash && clash.id !== id) {
-        throw new ConflictError(`Offer code ${next.offerCode} already exists`, {
+        throw new ConflictError('Offer code ' + next.offerCode + ' already exists', {
           offerCode: next.offerCode,
         });
       }
@@ -102,6 +134,9 @@ export class OfferService {
         commissionAmount: next.commissionAmount,
       });
     }
+    if (next.leadDedupWindowMinutes !== undefined) {
+      assertDedupWindow(next.leadDedupWindowMinutes);
+    }
     if (next.currency !== undefined) next.currency = next.currency.toUpperCase();
 
     return this.offers.update(id, next);
@@ -113,9 +148,18 @@ export class OfferService {
   }
 }
 
+function assertDedupWindow(minutes: number | undefined): void {
+  if (minutes === undefined) return;
+  if (!Number.isFinite(minutes) || minutes <= 0 || !Number.isInteger(minutes)) {
+    throw new ValidationError('leadDedupWindowMinutes must be a positive whole number of minutes', {
+      leadDedupWindowMinutes: minutes,
+    });
+  }
+}
+
 function requireField(value: string | undefined, name: string): string {
   const v = (value ?? '').trim();
-  if (!v) throw new ValidationError(`${name} is required`, { field: name });
+  if (!v) throw new ValidationError(name + ' is required', { field: name });
   return v;
 }
 

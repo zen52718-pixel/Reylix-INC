@@ -7,12 +7,27 @@ import { getServices } from '@/src/services';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * The website sends `brand` for "I need customers", which is the vocabulary that shipped
+ * with the public site. The domain now calls that party a Client.
+ *
+ * The translation happens HERE, at the boundary, so the wrong word never reaches the core
+ * model and no website component, label or form value has to change. `client` is also
+ * accepted so a future form can send the corrected value without another shim.
+ */
+const INTEREST_ALIASES: Record<string, 'client' | 'publisher' | 'other'> = {
+  brand: 'client',
+  client: 'client',
+  publisher: 'publisher',
+  other: 'other',
+};
+
 const ContactSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(120),
   email: z.string().trim().email('Enter a valid email address').max(200),
   phone: z.string().trim().max(40).optional(),
   company: z.string().trim().max(160).optional(),
-  interestType: z.enum(['brand', 'publisher', 'other']).default('other'),
+  interestType: z.enum(['brand', 'client', 'publisher', 'other']).default('other'),
   message: z.string().trim().max(4000).optional(),
   // TCPA-style consent. Refused rather than silently ignored when absent.
   consent: z.literal(true, {
@@ -43,36 +58,23 @@ export async function POST(request: NextRequest) {
     // Silently accept the honeypot so a bot gets no signal that it was detected.
     if (input.website) return jsonOk({ received: true });
 
-    const contact = await getServices().contact.create({
+    const inquiry = await getServices().inquiries.create({
       name: input.name,
       email: input.email,
       phone: input.phone,
       company: input.company,
-      interestType: input.interestType,
-      message: withConsentRecord(input.message, request),
+      interestType: INTEREST_ALIASES[input.interestType] ?? 'other',
+      message: input.message,
+      // Consent is stored as structured fields rather than prose in the message, so it is
+      // queryable and auditable.
+      consentGranted: true,
+      consentWording: CONSENT_CONTACT,
+      consentAt: new Date().toISOString(),
+      consentIp: clientIp(request),
     });
 
-    return jsonOk({ id: contact.id, received: true }, 201);
+    return jsonOk({ id: inquiry.id, received: true }, 201);
   } catch (err) {
     return errorResponse(err);
   }
-}
-
-/**
- * Append the consent record to the message body.
- *
- * This is a stopgap. A defensible TCPA record needs the consent flag, the exact wording
- * shown, the timestamp and the IP as first-class columns — not prose in a free-text field.
- * Adding those columns means changing the domain model, which is out of scope for this
- * sprint, so the facts are at least captured verbatim until that lands.
- */
-function withConsentRecord(message: string | undefined, request: NextRequest): string {
-  const record = [
-    '--- consent record ---',
-    'consent: granted',
-    `at: ${new Date().toISOString()}`,
-    `ip: ${clientIp(request)}`,
-    `wording: "${CONSENT_CONTACT}"`,
-  ].join('\n');
-  return message ? `${message}\n\n${record}` : record;
 }

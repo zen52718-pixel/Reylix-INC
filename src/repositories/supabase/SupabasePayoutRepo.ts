@@ -1,8 +1,8 @@
-import type { PayoutRow } from '@/src/domain/types';
+import type { PayoutRow, PayoutStatus } from '@/src/domain/types';
 import type { PayoutRepo } from '@/src/repositories/interfaces';
 import { maybeRow, requireRow, rows } from '@/src/repositories/supabase/_util';
 import { getServiceClient } from '@/src/repositories/supabase/client';
-import { payoutFromRow, payoutToRow } from '@/src/repositories/supabase/mappers';
+import { compact, payoutFromRow, payoutToRow, type Row } from '@/src/repositories/supabase/mappers';
 
 const TABLE = 'payouts';
 
@@ -38,13 +38,19 @@ export class SupabasePayoutRepo implements PayoutRepo {
     return rows(res as never, 'payouts.list').map(payoutFromRow);
   }
 
-  async markPaid(id: string): Promise<PayoutRow> {
+  async transition(
+    id: string,
+    status: PayoutStatus,
+    patch?: Partial<PayoutRow>,
+  ): Promise<PayoutRow> {
+    const changes = compact(payoutToRow({ ...patch, status }) as Row);
+    delete changes.id;
     const res = await getServiceClient()
       .from(TABLE)
-      .update({ status: 'paid', paid_at: new Date().toISOString() })
+      .update(changes)
       .eq('id', id)
       .select('*')
       .single();
-    return payoutFromRow(requireRow(res as never, 'payouts.markPaid', id));
+    return payoutFromRow(requireRow(res as never, 'payouts.transition', id));
   }
 }

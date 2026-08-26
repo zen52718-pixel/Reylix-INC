@@ -1,31 +1,51 @@
 /**
- * CommissionService (Blueprint Sprint 5) — lead status transitions with the commission
- * lock + audit. Enforces the transition contract (§4.3):
- *   new → approved : commission_amount = offer.commission_amount (LOCKED), approved_at
- *   new → rejected : commission_amount = 0, reject_reason
- *   approved → paid : paid_at
- *   anything else  : ConflictError (illegal transition → 409)
- * Also handles manual assign of unattributed leads and commission overrides.
+ * CommissionService — lead status transitions and the commission records they produce.
+ *
+ * Enforces the transition contract:
+ *   new → approved : admin enters the amount; a Commission record is created
+ *   new → rejected : reason required; NO commission record is created
+ *   approved → paid : paidAt stamped (normally driven by PayoutService)
+ *   anything else  : ConflictError → 409
+ *
+ * Commission is a RECORD, not a number on the lead. That is what makes a payout
+ * lifecycle and a clawback expressible, and it means the amount is immutable once
+ * written: a correction is a void plus a new record, never an edit.
+ *
+ * An UNATTRIBUTED lead can still be approved — the client wants it — but produces no
+ * commission, because there is nobody to pay.
  */
 import { ConflictError, NotFoundError, ValidationError } from '@/src/domain/errors';
-import type { Lead, LeadStatus } from '@/src/domain/types';
-import type { LeadRepo, OfferRepo } from '@/src/repositories/interfaces';
+import type { Commission, Lead, LeadStatus } from '@/src/domain/types';
+import { DEFAULT_CURRENCY } from '@/src/domain/types';
+import type {
+  CommissionFilter,
+  CommissionRepo,
+  LeadAttributionRepo,
+  LeadRepo,
+  OfferRepo,
+} from '@/src/repositories/interfaces';
 import type { AuditService } from '@/src/services/AuditService';
+
+export interface ApproveResult {
+  lead: Lead;
+  commission: Commission | null;
+}
 
 export class CommissionService {
   constructor(
     private readonly leads: LeadRepo,
     private readonly offers: OfferRepo,
+    private readonly commissions: CommissionRepo,
+    private readonly attributions: LeadAttributionRepo,
     private readonly audit: AuditService,
   ) {}
 
   /**
-   * new → approved. The admin sets the commission per lead (`commissionAmount`); that value
-   * is locked onto the lead. When no amount is supplied (e.g. legacy callers), it falls back
-   * to a per-lead override, then to the offer's default. Stores via the existing
-   * commission_amount field — payouts/reports are unchanged.
+   * new → approved. The admin sets the commission per lead; the offer's amount pre-fills
+   * that decision. The value is locked onto a new Commission record at this moment, so a
+   * later change to the offer never alters what has already been earned.
    */
-  async approve(leadId: string, actor: string, commissionAmount?: number): Promise<Lead> {
+  async approve(leadId: string, actor: string, commissionAmount?: number): Promise<ApproveResult> {
     const lead = await this.requireLead(leadId);
     this.assertTransition(lead.status, 'approved');
     if (!lead.offerId) {
@@ -38,26 +58,46 @@ export class CommissionService {
     if (adminEntered && (!Number.isFinite(commissionAmount) || (commissionAmount as number) < 0)) {
       throw new ValidationError('commission must be a non-negative number', { commissionAmount });
     }
+    // Only the flat model is calculated in V1. Any other model must be priced explicitly
+    // rather than silently falling back to the offer's flat amount.
+    if (!adminEntered && offer.commissionModel !== 'flat') {
+      throw new ValidationError(
+        `Offer uses the ${offer.commissionModel} model, so the commission amount must be entered explicitly`,
+        { leadId, commissionModel: offer.commissionModel },
+      );
+    }
+    const amount = adminEntered ? (commissionAmount as number) : offer.commissionAmount;
 
-    // Priority: admin-entered amount → per-lead override → offer default.
-    const locked = adminEntered
-      ? (commissionAmount as number)
-      : lead.commissionOverrideEnabled
-        ? (lead.commissionOverrideAmount ?? 0)
-        : offer.commissionAmount;
+    const approvedAt = new Date().toISOString();
+    const updated = await this.leads.updateStatus(leadId, 'approved', { approvedAt });
 
-    const updated = await this.leads.updateStatus(leadId, 'approved', {
-      approvedAt: new Date().toISOString(),
-      commissionAmount: locked,
-    });
+    const attribution = await this.attributions.getCurrentForLead(leadId);
+    let commission: Commission | null = null;
+    if (attribution) {
+      commission = await this.commissions.create({
+        leadId,
+        publisherId: attribution.publisherId,
+        offerId: offer.id,
+        clientId: offer.clientId,
+        amount,
+        currency: offer.currency || DEFAULT_CURRENCY,
+        model: offer.commissionModel,
+        status: 'payable',
+        approvedBy: actor,
+        createdAt: approvedAt,
+      });
+    }
+
     await this.audit.log(actor, 'lead', leadId, 'approved', {
-      commissionAmount: locked,
+      amount,
       adminEntered,
+      attributed: Boolean(attribution),
+      commissionId: commission?.id ?? null,
     });
-    return updated;
+    return { lead: updated, commission };
   }
 
-  /** new → rejected: zeroes commission and records a (required) reason. */
+  /** new → rejected: records a required reason. No commission record is created. */
   async reject(leadId: string, actor: string, reason: string): Promise<Lead> {
     const lead = await this.requireLead(leadId);
     this.assertTransition(lead.status, 'rejected');
@@ -65,21 +105,17 @@ export class CommissionService {
     if (!trimmed) {
       throw new ValidationError('Rejection reason is required.', { leadId });
     }
-    const updated = await this.leads.updateStatus(leadId, 'rejected', {
-      commissionAmount: 0,
-      rejectReason: trimmed,
-    });
+    const updated = await this.leads.updateStatus(leadId, 'rejected', { rejectReason: trimmed });
     await this.audit.log(actor, 'lead', leadId, 'rejected', { reason: trimmed });
     return updated;
   }
 
-  /** approved → paid. */
+  /** approved → paid. Normally reached through PayoutService rather than directly. */
   async markPaid(leadId: string, actor: string): Promise<Lead> {
     const lead = await this.requireLead(leadId);
     this.assertTransition(lead.status, 'paid');
-    const updated = await this.leads.updateStatus(leadId, 'paid', {
-      paidAt: new Date().toISOString(),
-    });
+    const paidAt = new Date().toISOString();
+    const updated = await this.leads.updateStatus(leadId, 'paid', { paidAt });
     await this.audit.log(actor, 'lead', leadId, 'paid', {});
     return updated;
   }
@@ -93,7 +129,7 @@ export class CommissionService {
   ): Promise<Lead> {
     switch (target) {
       case 'approved':
-        return this.approve(leadId, actor, opts?.commissionAmount);
+        return (await this.approve(leadId, actor, opts?.commissionAmount)).lead;
       case 'rejected':
         return this.reject(leadId, actor, opts?.reason ?? '');
       case 'paid':
@@ -103,55 +139,41 @@ export class CommissionService {
     }
   }
 
-  /** Assign an (unattributed) lead to a publisher — manual attribution. */
-  async assign(leadId: string, publisherId: string, actor: string): Promise<Lead> {
-    await this.requireLead(leadId);
-    const updated = await this.leads.update(leadId, { publisherId, attributionSource: 'manual' });
-    await this.audit.log(actor, 'lead', leadId, 'assigned', { publisherId });
+  /**
+   * Reverse a commission after approval.
+   *
+   * An unpaid commission is voided. A commission that has already been paid becomes a
+   * clawback rather than disappearing — a publisher must be able to see that money was
+   * reclaimed and why, so this is never a silent deduction.
+   */
+  async voidCommission(leadId: string, actor: string, reason: string): Promise<Commission> {
+    const trimmed = (reason ?? '').trim();
+    if (!trimmed) {
+      throw new ValidationError('A reason is required to void a commission', { leadId });
+    }
+    const live = await this.commissions.getLiveForLead(leadId);
+    if (!live) throw new NotFoundError(`No live commission for lead ${leadId}`, { leadId });
+
+    const status = live.status === 'paid' ? 'clawed_back' : 'void';
+    const updated = await this.commissions.update(live.id, {
+      status,
+      voidedAt: new Date().toISOString(),
+      voidReason: trimmed,
+    });
+    await this.audit.log(actor, 'commission', live.id, status, {
+      leadId,
+      amount: live.amount,
+      reason: trimmed,
+    });
     return updated;
   }
 
-  /**
-   * Enable a per-lead commission override. Stores the override flag + amount AND sets the
-   * effective `commissionAmount` so existing dashboards/reports/payouts (which read
-   * commissionAmount) reflect it automatically. If the lead is later approved, approve()
-   * keeps the override (see above).
-   */
-  async overrideCommission(leadId: string, amount: number, actor: string): Promise<Lead> {
-    await this.requireLead(leadId);
-    if (!Number.isFinite(amount) || amount < 0) {
-      throw new ValidationError('commission must be a non-negative number', { amount });
-    }
-    const updated = await this.leads.update(leadId, {
-      commissionOverrideEnabled: true,
-      commissionOverrideAmount: amount,
-      commissionAmount: amount,
-    });
-    await this.audit.log(actor, 'lead', leadId, 'commission_override', { amount });
-    return updated;
+  async list(filter?: CommissionFilter): Promise<Commission[]> {
+    return this.commissions.list(filter);
   }
 
-  /**
-   * Clear the override → fall back to the offer commission. For an already-approved/paid
-   * lead the effective amount reverts to the offer's commission; for a still-`new` lead the
-   * effective amount remains 0 until it locks at approval.
-   */
-  async clearCommissionOverride(leadId: string, actor: string): Promise<Lead> {
-    const lead = await this.requireLead(leadId);
-    let commissionAmount = lead.commissionAmount;
-    if ((lead.status === 'approved' || lead.status === 'paid') && lead.offerId) {
-      const offer = await this.offers.getById(lead.offerId);
-      commissionAmount = offer ? offer.commissionAmount : lead.commissionAmount;
-    } else if (lead.status === 'new') {
-      commissionAmount = 0;
-    }
-    const updated = await this.leads.update(leadId, {
-      commissionOverrideEnabled: false,
-      commissionOverrideAmount: 0,
-      commissionAmount,
-    });
-    await this.audit.log(actor, 'lead', leadId, 'commission_override_cleared', {});
-    return updated;
+  async getForLead(leadId: string): Promise<Commission | null> {
+    return this.commissions.getLiveForLead(leadId);
   }
 
   private assertTransition(from: LeadStatus, to: LeadStatus): void {

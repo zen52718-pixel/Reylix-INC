@@ -40,13 +40,22 @@ export class SupabaseOfferRepo implements OfferRepo {
     return rows(res as never, 'offers.listActive').map(offerFromRow);
   }
 
-  async listByBuyer(buyerId: string): Promise<Offer[]> {
+  async listByClient(clientId: string): Promise<Offer[]> {
     const res = await getServiceClient()
       .from(TABLE)
       .select('*')
-      .eq('buyer_id', buyerId)
+      .eq('client_id', clientId)
       .order('created_at', { ascending: false });
-    return rows(res as never, 'offers.listByBuyer').map(offerFromRow);
+    return rows(res as never, 'offers.listByClient').map(offerFromRow);
+  }
+
+  async listByCampaign(campaignId: string): Promise<Offer[]> {
+    const res = await getServiceClient()
+      .from(TABLE)
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .order('created_at', { ascending: false });
+    return rows(res as never, 'offers.listByCampaign').map(offerFromRow);
   }
 
   async create(o: Omit<Offer, 'id' | 'createdAt'>): Promise<Offer> {
