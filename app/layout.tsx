@@ -27,11 +27,11 @@ const mono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Reylix INC — Customer acquisition systems',
+    default: 'Reylix INC — Customer Acquisition Systems',
     template: '%s | Reylix INC',
   },
   description:
-    'Reylix builds and operates industry-specific customer acquisition systems that help businesses capture, qualify and convert customers.',
+    'Reylix INC builds industry-specific customer acquisition systems — digital presence, lead capture, qualification, AI automation, CRM integration and appointment booking, connected as one system.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

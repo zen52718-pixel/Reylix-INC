@@ -42,7 +42,7 @@ export function SiteHeader() {
             href="/contact"
             className="rounded-sm bg-brand-700 px-4 py-2 text-[0.88rem] font-semibold text-white transition-colors hover:bg-brand-800"
           >
-            Talk to us
+            Talk to Reylix
           </Link>
         </nav>
 
@@ -80,7 +80,7 @@ export function SiteHeader() {
               href="/contact"
               className="mt-3 rounded-sm bg-brand-700 px-4 py-3 text-center font-semibold text-white"
             >
-              Talk to us
+              Talk to Reylix
             </Link>
           </nav>
         </div>

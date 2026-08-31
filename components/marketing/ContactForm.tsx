@@ -99,7 +99,7 @@ export function ContactForm() {
 
       {error && <FormError message={error} />}
 
-      <SubmitButton pending={status === 'sending'}>Send message</SubmitButton>
+      <SubmitButton pending={status === 'sending'}>Start the Conversation</SubmitButton>
     </form>
   );
 }

@@ -1,12 +1,12 @@
 /**
  * Site content that appears in more than one place.
  *
- * Kept out of the page components so the vertical list, nav and legal name have exactly one
- * definition — adding the fifth vertical should be a one-line change, not a search-and-replace
+ * Kept out of the page components so the industry list, nav and legal name have exactly
+ * one definition — adding a vertical is a one-line change, not a search-and-replace
  * across six pages.
  *
- * This is marketing copy only. It deliberately does not import from `src/` — the public site
- * has no business reaching into the platform's domain layer.
+ * This is marketing copy only. It deliberately does not import from `src/` — the public
+ * site has no business reaching into the platform's domain layer.
  */
 
 /** Registered company name, shown in the footer and legal pages. */
@@ -36,70 +36,85 @@ export const NAV: NavItem[] = [
   { href: '/about', label: 'About' },
 ];
 
-export type VerticalStatus = 'available' | 'in-development' | 'planned';
-
 export interface Vertical {
   slug: string;
   name: string;
-  status: VerticalStatus;
   summary: string;
   capabilities: string[];
 }
 
 /**
- * The vertical systems, in the order they are being built. Real Estate is Product #1;
- * the rest are named because prospects ask "what else", not because they are ready.
+ * The industry systems Reylix operates.
+ *
+ * Real Estate is where the system started; each of the others is built around how that
+ * industry actually acquires and qualifies customers. Order here is the order they appear
+ * across the site.
  */
 export const VERTICALS: Vertical[] = [
   {
     slug: 'real-estate',
     name: 'Real Estate',
-    status: 'in-development',
     summary:
-      'A complete acquisition system for real estate professionals: buyer and seller capture, qualification, property matching and appointment booking.',
+      'Buyer and seller acquisition systems for real estate professionals — combining digital presence, property presentation, lead capture, qualification, automated follow-up, property matching and appointment booking.',
     capabilities: [
-      'Buyer and seller capture forms',
-      'Automated qualification and follow-up',
-      'Property presentation and matching',
-      'Appointment scheduling',
-      'CRM integration',
+      'Digital presence and property presentation',
+      'Buyer and seller lead capture',
+      'Requirement and timeline qualification',
+      'Property matching',
+      'Automated follow-up',
+      'Showing and consultation booking',
     ],
   },
   {
     slug: 'home-services',
     name: 'Home Services',
-    status: 'planned',
     summary:
-      'Estimate requests, job qualification and scheduling for contractors, roofers and trades.',
+      'Customer acquisition systems for contractors, roofers, remodelers and service businesses — from estimate requests and qualification to scheduling and follow-up.',
     capabilities: [
       'Estimate request capture',
-      'Job qualification',
-      'Service-area routing',
-      'Scheduling and reminders',
+      'Job and service-area qualification',
+      'Scheduling',
+      'Automated follow-up',
     ],
   },
   {
     slug: 'legal',
     name: 'Legal',
-    status: 'planned',
     summary:
-      'Case intake and qualification for practices where matching the right case matters more than volume.',
-    capabilities: ['Case intake', 'Practice-area routing', 'Qualification', 'Consultation booking'],
+      'Client acquisition systems for law firms and legal practices — structured intake, case qualification, practice-area routing and consultation scheduling.',
+    capabilities: [
+      'Structured intake',
+      'Case qualification',
+      'Practice-area routing',
+      'Consultation scheduling',
+    ],
   },
   {
     slug: 'insurance',
     name: 'Insurance',
-    status: 'planned',
-    summary: 'Quote requests, coverage qualification and agent handoff for agencies and carriers.',
-    capabilities: ['Quote request capture', 'Coverage qualification', 'Agent routing'],
+    summary:
+      'Customer acquisition systems for insurance businesses — quote capture, qualification, routing and structured follow-up.',
+    capabilities: [
+      'Quote request capture',
+      'Coverage and eligibility qualification',
+      'Agent and product routing',
+      'Structured follow-up',
+    ],
+  },
+  {
+    slug: 'healthcare',
+    name: 'Healthcare',
+    summary:
+      'Patient acquisition systems for clinics, practices and healthcare providers — enquiry capture, service routing, qualification, appointment scheduling and automated follow-up.',
+    capabilities: [
+      'Patient enquiry capture',
+      'Service and specialty routing',
+      'Qualification',
+      'Appointment scheduling',
+      'Automated follow-up',
+    ],
   },
 ];
-
-export const STATUS_LABEL: Record<VerticalStatus, string> = {
-  available: 'Available',
-  'in-development': 'In development',
-  planned: 'Planned',
-};
 
 /**
  * Consent wording, shown beside the checkbox and stored verbatim with the submission.
@@ -113,26 +128,34 @@ export const CONSENT_CONTACT =
 export const CONSENT_PARTNER =
   'I agree to be contacted by Reylix about my application, including by phone, email and SMS. Consent is not a condition of participation. Message and data rates may apply.';
 
-/** The four stages of what Reylix operates, used on the home page and the client page. */
+/**
+ * The five stages of a Reylix acquisition system, used on the home page and the client
+ * page. Sequential, so the numbering carries real information.
+ */
 export const STAGES = [
   {
     n: '01',
     title: 'Presence',
-    body: 'The site, the profiles and the property or service presentation a customer actually lands on.',
+    body: 'The digital experience where customers first encounter the business.',
   },
   {
     n: '02',
     title: 'Capture',
-    body: 'Forms built for the vertical, so the first contact collects what the business needs to act.',
+    body: 'Industry-specific forms and conversion points designed to collect the information the business actually needs.',
   },
   {
     n: '03',
     title: 'Qualification',
-    body: 'Automated follow-up that finds out intent, timeline and fit before anyone picks up the phone.',
+    body: 'Structured questions and workflows identify intent, fit, timeline and requirements.',
   },
   {
     n: '04',
+    title: 'Engagement',
+    body: 'Automated follow-up and AI-powered agents keep prospects engaged and move conversations forward.',
+  },
+  {
+    n: '05',
     title: 'Conversion',
-    body: 'Booked appointments in the calendar and a record in the CRM, not a list of names to chase.',
+    body: 'Qualified prospects are routed into the CRM, followed up, scheduled and moved toward a real business conversation.',
   },
 ] as const;

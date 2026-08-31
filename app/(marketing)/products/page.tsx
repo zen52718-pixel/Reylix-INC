@@ -1,39 +1,40 @@
 import type { Metadata } from 'next';
-import { STATUS_LABEL, VERTICALS } from '@/components/marketing/content';
+import { VERTICALS } from '@/components/marketing/content';
 import { CallToAction, PageHeader, Prose, Section } from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
-  title: 'Products',
+  title: 'Industry-Specific Acquisition Systems',
   description:
-    'Reylix builds a complete customer acquisition system per industry. Real Estate is the first; Home Services, Legal and Insurance follow.',
+    'Customer acquisition systems for real estate, home services, legal, insurance and healthcare — capture, qualification, AI engagement, CRM integration and appointment booking in one system.',
 };
 
 export default function ProductsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Products"
-        title="One system per industry."
-        standfirst="Acquisition is not generic. What qualifies a home seller has nothing in common with what qualifies an insurance quote, so each vertical gets its own system rather than a re-skinned template."
+        eyebrow="Systems"
+        title="Industry-specific customer acquisition systems."
+        standfirst="Every industry has a different customer journey. The acquisition system is built around that journey — from the first interaction through qualification, engagement, CRM management and conversion."
       />
 
       <Section label="Why per-industry" title="The qualification is the product.">
         <Prose>
           <p>
-            The website and the forms are the visible part, but they are not what makes a system
-            work. What matters is knowing which questions separate a customer who is ready from
-            one who is browsing — and those questions are completely different in each industry.
+            The website and the forms are the visible part, but they are not what makes a
+            system work. What matters is knowing which questions separate a customer who is
+            ready from one who is looking — and those questions are entirely different in each
+            industry.
           </p>
           <p>
-            That knowledge is what Reylix encodes into each vertical system, and it is why one
-            generic funnel sold to every industry underperforms in all of them.
+            That knowledge is what gets encoded into each system, and it is why one generic
+            funnel sold into every industry underperforms in all of them.
           </p>
         </Prose>
       </Section>
 
       <section className="border-b border-ink-200">
         <div className="gutter py-16 sm:py-20">
-          <p className="label text-ink-500">The verticals</p>
+          <p className="label text-ink-500">The systems</p>
           <div className="mt-12 space-y-px bg-ink-200">
             {VERTICALS.map((v) => (
               <article
@@ -42,27 +43,16 @@ export default function ProductsPage() {
                 className="scroll-mt-20 bg-white p-7 sm:p-9 lg:grid lg:grid-cols-[1fr_1.3fr] lg:gap-12"
               >
                 <div>
-                  <div className="flex items-center gap-3">
-                    <h2 className="font-display text-xl font-semibold tracking-tight text-ink-900">
-                      {v.name}
-                    </h2>
-                    <span
-                      className={`label rounded-sm px-2 py-1 ${
-                        v.status === 'in-development'
-                          ? 'bg-brand-50 text-brand-700'
-                          : 'bg-ink-100 text-ink-500'
-                      }`}
-                    >
-                      {STATUS_LABEL[v.status]}
-                    </span>
-                  </div>
+                  <h2 className="font-display text-xl font-semibold tracking-tight text-ink-900">
+                    {v.name}
+                  </h2>
                   <p className="mt-4 max-w-measure text-[1.0rem] leading-relaxed text-ink-600">
                     {v.summary}
                   </p>
                 </div>
 
                 <div className="mt-6 lg:mt-0">
-                  <h3 className="label text-ink-500">Includes</h3>
+                  <h3 className="label text-ink-500">The system includes</h3>
                   <ul className="mt-4 grid gap-2 sm:grid-cols-2">
                     {v.capabilities.map((c) => (
                       <li
@@ -81,26 +71,46 @@ export default function ProductsPage() {
         </div>
       </section>
 
-      <Section label="Real Estate" title="Product one, in development now.">
+      <Section label="Real Estate" title="A complete acquisition system for real estate.">
         <Prose>
           <p>
-            The Real Estate system covers both sides of the market, because a realtor needs both.
-            On the buyer side it captures requirements, qualifies budget and timeline, and moves
-            toward matching properties and booking a viewing. On the seller side it handles
-            valuation and consultation requests and the follow-up that turns interest into an
-            appointment.
+            The real estate system supports both sides of the market, because a realtor needs
+            both. A buyer discovers properties, submits requirements, budget, location and
+            timeline, receives relevant property information, continues through automated
+            follow-up and schedules a showing or consultation.
           </p>
           <p>
-            It is designed to be configured per realtor rather than rebuilt per realtor — the same
-            system, with different branding, market and property data behind it.
+            A seller requests a valuation, submits property information, enters a seller
+            qualification workflow and moves through automated follow-up toward a scheduled
+            conversation with the realtor.
+          </p>
+          <p>
+            The same core system is configured per realtor — different branding, market,
+            properties, qualification criteria, calendar and CRM configuration. Built once and
+            configured intelligently rather than rebuilt for every client.
+          </p>
+        </Prose>
+      </Section>
+
+      <Section label="Shared infrastructure" title="What every system has underneath it.">
+        <Prose>
+          <p>
+            Presence, capture, qualification, AI-powered engagement, automated follow-up, CRM
+            integration, appointment booking and reporting are common to every vertical. What
+            changes between them is the customer journey, the qualification criteria and the
+            conversion model.
+          </p>
+          <p>
+            That is what makes the systems repeatable: improvements made for one deployment are
+            available to the next rather than trapped in a bespoke build.
           </p>
         </Prose>
       </Section>
 
       <CallToAction
         title="Want the system for your industry?"
-        body="If your vertical is on the list, tell us where you operate. If it is not, tell us anyway — the roadmap follows demand."
-        primary={{ href: '/contact', label: 'Talk to us' }}
+        body="Tell us what your business sells, who you want to reach and where your current acquisition process breaks down."
+        primary={{ href: '/contact', label: 'Start a Conversation' }}
         secondary={{ href: '/for-clients', label: 'How it works for clients' }}
       />
     </>

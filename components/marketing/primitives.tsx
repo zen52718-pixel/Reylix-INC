@@ -75,7 +75,7 @@ export function Stages({
   items: readonly { n: string; title: string; body: string }[];
 }) {
   return (
-    <ol className="mt-12 grid gap-px overflow-hidden border border-ink-200 bg-ink-200 sm:grid-cols-2 lg:grid-cols-4">
+    <ol className="mt-12 grid gap-px overflow-hidden border border-ink-200 bg-ink-200 sm:grid-cols-2 lg:grid-cols-5">
       {items.map((s) => (
         <li key={s.n} className="bg-white p-6">
           <span className="label text-brand-700">{s.n}</span>

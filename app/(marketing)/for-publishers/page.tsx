@@ -4,29 +4,29 @@ import { CallToAction, PageHeader, Prose, Section } from '@/components/marketing
 export const metadata: Metadata = {
   title: 'For Publishers',
   description:
-    'Promote Reylix offers with tracked referral links, see exactly what was attributed to you, and get paid on approved leads.',
+    'Promote Reylix customer acquisition offers with tracked referral links. Transparent attribution, lead approval, commission visibility and payouts under stated offer terms.',
 };
 
 const FLOW = [
   {
     n: '01',
     title: 'Apply',
-    body: 'Tell us about your audience and how you plan to promote. We review every application.',
+    body: 'Tell us about your audience and traffic sources. Every application is reviewed.',
   },
   {
     n: '02',
-    title: 'Get your links',
-    body: 'Each offer gives you a referral link tied to your publisher code. The link is yours and does not change.',
+    title: 'Access offers',
+    body: 'Approved publishers receive offers across our industry verticals, each with its own terms.',
   },
   {
     n: '03',
-    title: 'Send traffic',
-    body: 'Clicks are recorded and deduplicated. Attribution follows the referral parameter first, then the cookie.',
+    title: 'Promote',
+    body: 'Each offer gives you a tracked referral link tied to your publisher code. The link is yours and does not change.',
   },
   {
     n: '04',
-    title: 'Get paid',
-    body: 'Approved leads earn a commission. Payouts are issued per period by ACH, PayPal or check.',
+    title: 'Earn',
+    body: 'Attributed leads are reviewed. Approved leads earn commission, paid under the terms of that offer.',
   },
 ];
 
@@ -35,8 +35,8 @@ export default function ForPublishersPage() {
     <>
       <PageHeader
         eyebrow="For publishers"
-        title="Get paid for the customers you send."
-        standfirst="Reylix runs a partner channel for its own products. You promote offers with tracked links, and you are paid on leads that are approved."
+        title="Turn traffic into revenue."
+        standfirst="We operate our own acquisition offers across five industries. Publishers promote those offers with tracked referral links and earn commission on approved leads."
       />
 
       <Section label="How it works" title="From link to payout.">
@@ -54,15 +54,15 @@ export default function ForPublishersPage() {
       <Section label="Attribution" title="You can see what you were credited for.">
         <Prose>
           <p>
-            Attribution is the part most partner programs are vague about, so here is exactly how
-            ours resolves. An explicit referral parameter on the link wins. If there is no
-            parameter, the referral cookie is used. If there is neither, the lead is unattributed
-            and nobody is credited for it.
+            Attribution is the part most partner programs are vague about, so here is exactly
+            how ours resolves. An explicit referral parameter on the link wins. If there is no
+            parameter, the referral cookie is used. If there is neither, the lead is
+            unattributed and nobody is credited for it.
           </p>
           <p>
             Repeat clicks from the same visitor on the same link inside the deduplication window
-            are recorded but not counted as unique. Your dashboard shows clicks, leads, approved
-            leads, commission earned, and what has been paid against what is still owed.
+            are recorded but not counted as unique. Attributed leads, approved leads and
+            commission are all visible to you.
           </p>
           <p className="text-ink-900">
             When a lead is rejected, you see the reason. A rejection without a stated reason is
@@ -71,35 +71,40 @@ export default function ForPublishersPage() {
         </Prose>
       </Section>
 
-      <Section label="Commission and payment" title="Flat commission per approved lead.">
+      <Section label="Commission and payment" title="Commission is set by the offer.">
         <Prose>
           <p>
-            Each offer carries a commission amount. A lead is reviewed after it arrives, and the
-            commission is set and locked onto that lead at the moment it is approved — so a later
-            change to an offer never alters what you have already earned.
+            Each offer carries its own commission terms. A lead is reviewed after it arrives,
+            and the commission is set and locked onto that lead at the moment it is approved —
+            so a later change to an offer never alters what you have already earned.
           </p>
           <p>
-            Payouts are issued per period and are processed manually at this stage, by ACH, PayPal
-            or check. There is no minimum threshold to clear and no balance that expires: what is
+            Payouts are issued per period under the terms of the offer, by ACH, PayPal or
+            check. There is no minimum threshold to clear and no balance that expires: what is
             approved is owed.
           </p>
         </Prose>
       </Section>
 
-      <Section label="Honest scope" title="The program is launching.">
+      <Section label="Scope" title="What the publisher network is, and is not.">
         <Prose>
           <p>
-            The partner channel is being built alongside the first product. Applications submitted
-            now are reviewed and you will be contacted when the program opens — we are not going
-            to pretend there is a live dashboard waiting for you today.
+            Publishers promote our own acquisition offers. They do not receive access to a
+            client&rsquo;s CRM, customer database or pipeline, and they do not manage anyone
+            else&rsquo;s customers. Those records belong to the client and stay in the
+            client&rsquo;s system.
+          </p>
+          <p>
+            The publisher portal is being rolled out. Applications submitted now are reviewed,
+            and access details are sent by email — there is no live dashboard to log into yet.
           </p>
         </Prose>
       </Section>
 
       <CallToAction
-        title="Apply to the partner program."
-        body="Tell us about your audience and how you promote. We review every application and reply either way."
-        primary={{ href: '/become-a-partner', label: 'Become a partner' }}
+        title="Have an audience? Put it to work."
+        body="Tell us about your traffic sources and how you promote. Every application is reviewed and answered either way."
+        primary={{ href: '/become-a-partner', label: 'Become a Publisher' }}
         secondary={{ href: '/products', label: 'See what you would promote' }}
       />
     </>

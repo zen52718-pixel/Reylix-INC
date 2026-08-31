@@ -5,33 +5,37 @@ import { CallToAction, PageHeader, Prose, Section, Stages } from '@/components/m
 export const metadata: Metadata = {
   title: 'For Clients',
   description:
-    'Reylix deploys a complete customer acquisition system for your industry and connects it to the CRM you already use.',
+    'A customer acquisition system built around your business — digital presence, lead capture, qualification, AI automation, CRM integration, appointment booking and reporting.',
 };
 
 const INCLUDED = [
   {
-    title: 'Digital presence',
-    body: 'The site customers actually land on, built for the vertical rather than adapted from a template.',
+    title: 'Digital Presence',
+    body: 'Industry-specific website and customer experience, built for how your market actually decides.',
   },
   {
-    title: 'Capture built for the industry',
-    body: 'Forms that ask what your business needs to act on the first contact, not a generic name-and-email box.',
+    title: 'Lead Capture',
+    body: 'Forms and conversion points designed around your business, collecting what you need to act on the first contact.',
   },
   {
-    title: 'Automated qualification',
-    body: 'Follow-up that establishes intent, timeline and fit before the conversation reaches you.',
+    title: 'Qualification',
+    body: 'Questions and workflows that determine whether a prospect is worth pursuing, before anyone picks up the phone.',
   },
   {
-    title: 'Your CRM, connected',
-    body: 'Everything lands in the system you already work in. Reylix integrates with it rather than replacing it.',
+    title: 'AI & Automation',
+    body: 'Automated conversations, follow-up and task handling that continue after the form is submitted.',
   },
   {
-    title: 'Appointment booking',
-    body: 'The output is time on your calendar with someone who is ready to talk.',
+    title: 'CRM',
+    body: 'Centralized management of customer records and opportunities, in the system your team works in.',
+  },
+  {
+    title: 'Appointment Booking',
+    body: 'Move qualified prospects toward scheduled conversations rather than a list to chase.',
   },
   {
     title: 'Reporting',
-    body: 'What came in, what was qualified, what converted — and where it came from.',
+    body: 'Understand where opportunities came from and what happened after capture.',
   },
 ];
 
@@ -40,11 +44,11 @@ export default function ForClientsPage() {
     <>
       <PageHeader
         eyebrow="For clients"
-        title="A system that hands you booked appointments."
-        standfirst="Reylix deploys the acquisition system for your industry, connects it to the tools you already use, and operates it. You are buying an outcome, not a project."
+        title="A customer acquisition system built around your business."
+        standfirst="A website is not the product. We deploy the acquisition infrastructure around the business — presence, capture, qualification, engagement, CRM and booking, connected as one system."
       />
 
-      <Section label="What you get" title="The whole path, not a piece of it.">
+      <Section label="What gets deployed" title="The whole path, not a piece of it.">
         <ul className="mt-12 grid gap-px overflow-hidden border border-ink-200 bg-ink-200 sm:grid-cols-2 lg:grid-cols-3">
           {INCLUDED.map((item) => (
             <li key={item.title} className="bg-white p-6">
@@ -55,49 +59,48 @@ export default function ForClientsPage() {
         </ul>
       </Section>
 
-      <Section label="How it works" title="Four stages you never have to stitch together.">
+      <Section label="How it works" title="Five stages you never have to stitch together.">
         <Stages items={STAGES} />
       </Section>
 
       <Section label="Working with us" title="What we need from you.">
         <Prose>
           <p>
-            Reylix configures a system that already exists rather than building yours from
-            scratch. That keeps deployment measured in weeks and means improvements made for one
-            client reach every client on the same product.
+            The system already exists; it is configured for your business rather than built
+            from scratch. That keeps deployment measured in weeks, and means improvements made
+            for one client reach every client on the same system.
           </p>
           <p>
-            What we need from you is the part only you have: how your business actually qualifies
-            a good customer, what you want to know before a first conversation, and access to the
-            CRM and calendar you already work in.
+            What we need from you is the part only you have: how your business actually
+            qualifies a good customer, what you want to know before a first conversation, and
+            access to the CRM and calendar your team already works in.
           </p>
           <p>
-            You keep your data. Consumer records live in your CRM, under your account, and the
+            You keep your data. Customer records live in your CRM, under your account, and the
             relationship with your customers stays yours.
           </p>
         </Prose>
       </Section>
 
-      <Section label="Honest scope" title="Where Reylix is right now.">
+      <Section label="Two separate things" title="Your customers are not part of our network.">
         <Prose>
           <p>
-            Reylix is early. The Real Estate system is the first product and is in active
-            development; the other verticals are named because they are planned, not because they
-            are shipping.
+            We also operate a publisher network that promotes our own acquisition offers. That
+            is a separate side of the business, and the two do not touch.
           </p>
           <p>
-            If you are considering working with us, you would be an early client, with the access
-            and the risk that implies. We would rather say that plainly than discover it together
-            three months in.
+            Publishers promote offers using tracked referral links. They have no access to your
+            CRM, your customer records or your pipeline. The customers your system acquires
+            belong to you and are managed in your CRM.
           </p>
         </Prose>
       </Section>
 
       <CallToAction
         title="Tell us what you are trying to grow."
-        body="Describe your business and what a good customer looks like. If Reylix is not the right fit, we will tell you."
-        primary={{ href: '/contact', label: 'Start a conversation' }}
-        secondary={{ href: '/products', label: 'See the products' }}
+        body="Describe your business, who you want to reach and where the process breaks down today. If an industry-specific acquisition system is not the right fit, we will say so."
+        primary={{ href: '/contact', label: 'Talk to Reylix' }}
+        secondary={{ href: '/products', label: 'Explore Our Systems' }}
       />
     </>
   );

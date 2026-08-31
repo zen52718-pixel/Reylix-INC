@@ -118,7 +118,7 @@ export function PartnerForm() {
 
       {error && <FormError message={error} />}
 
-      <SubmitButton pending={status === 'sending'}>Submit application</SubmitButton>
+      <SubmitButton pending={status === 'sending'}>Apply to Become a Publisher</SubmitButton>
     </form>
   );
 }

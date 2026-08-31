@@ -94,7 +94,7 @@ export function SiteFooter() {
             &copy; {YEAR} {LEGAL_NAME}
           </p>
           {/* State of incorporation intentionally unstated until confirmed. */}
-          <p className="label text-ink-400">A United States C corporation</p>
+          <p className="label text-ink-400">A United States C Corporation</p>
         </div>
       </div>
     </footer>
