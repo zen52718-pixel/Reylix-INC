@@ -120,6 +120,26 @@ export class PublisherService {
     return updated;
   }
 
+  /**
+   * Admin: reject an application + audit.
+   *
+   * Distinct from suspend on purpose. "We reviewed your application and said no" and "your
+   * account has been switched off" are different facts, and a publisher may reasonably ask
+   * which one applies to them. A reason is required for the same reason a lead rejection
+   * requires one.
+   */
+  async reject(id: string, actor: string, reason: string): Promise<Publisher> {
+    const publisher = await this.publishers.getById(id);
+    if (!publisher) throw new NotFoundError(`Publisher ${id} not found`);
+    const trimmed = (reason ?? '').trim();
+    if (!trimmed) {
+      throw new ValidationError('A reason is required to reject a publisher', { id });
+    }
+    const updated = await this.publishers.update(id, { status: 'rejected' });
+    await this.audit?.log(actor, 'publisher', id, 'rejected', { reason: trimmed });
+    return updated;
+  }
+
   /** Admin: suspend a publisher + audit. */
   async suspend(id: string, actor: string): Promise<Publisher> {
     const publisher = await this.publishers.getById(id);

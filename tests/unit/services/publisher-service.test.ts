@@ -80,4 +80,41 @@ describe('PublisherService', () => {
 
     await expect(service.update(a.id, { publisherCode: 'SARA' })).rejects.toBeInstanceOf(ConflictError);
   });
+
+  describe('rejection', () => {
+    it('rejects an application with a required reason', async () => {
+      const created = await service.apply({
+        fullName: 'Rejected Applicant',
+        email: 'nope@example.com',
+        phone: '+15550000009',
+      });
+
+      const rejected = await service.reject(created.id, 'admin@reylix.com', 'Traffic source not permitted');
+      expect(rejected.status).toBe('rejected');
+    });
+
+    it('requires a reason', async () => {
+      const created = await service.apply({
+        fullName: 'Applicant',
+        email: 'a2@example.com',
+        phone: '+15550000010',
+      });
+      await expect(service.reject(created.id, 'admin@reylix.com', '  ')).rejects.toBeInstanceOf(
+        ValidationError,
+      );
+    });
+
+    it('rejected is distinct from suspended', async () => {
+      // "We said no" and "we switched you off" are different facts a publisher may ask about.
+      const a = await service.apply({ fullName: 'A', email: 'ra@example.com', phone: '+15550000011' });
+      const b = await service.apply({ fullName: 'B', email: 'rb@example.com', phone: '+15550000012' });
+
+      const rejected = await service.reject(a.id, 'admin', 'not a fit');
+      const suspended = await service.suspend(b.id, 'admin');
+
+      expect(rejected.status).toBe('rejected');
+      expect(suspended.status).toBe('suspended');
+      expect(rejected.status).not.toBe(suspended.status);
+    });
+  });
 });

@@ -143,7 +143,8 @@ export const publisherToRow = (p: Partial<Publisher>): Row =>
 // ── offers ───────────────────────────────────────────────────────────────────
 export const offerFromRow = (r: Row): Offer => ({
   id: str(r.id),
-  campaignId: str(r.campaign_id),
+  productId: strOpt(r.product_id),
+  campaignId: strOpt(r.campaign_id),
   clientId: str(r.client_id),
   offerCode: str(r.offer_code),
   name: str(r.name),
@@ -160,6 +161,7 @@ export const offerFromRow = (r: Row): Offer => ({
 export const offerToRow = (o: Partial<Offer>): Row =>
   compact({
     id: o.id,
+    product_id: o.productId,
     campaign_id: o.campaignId,
     client_id: o.clientId,
     offer_code: o.offerCode,

@@ -9,7 +9,12 @@ describe('OfferService', () => {
 
   beforeEach(async () => {
     chain = await seedChain();
-    service = new OfferService(chain.repos.offers, chain.repos.campaigns, chain.repos.clients);
+    service = new OfferService(
+      chain.repos.offers,
+      chain.repos.campaigns,
+      chain.repos.clients,
+      chain.repos.products,
+    );
   });
 
   it('creates an offer bound to a campaign and a client, with USD + flat defaults', async () => {
@@ -31,22 +36,83 @@ describe('OfferService', () => {
     expect(offer.campaignId).toBe(chain.campaignId);
   });
 
-  it('requires both a campaign and a client', async () => {
-    const base = {
-      offerCode: 'X1',
-      name: 'X',
-      destinationUrl: 'https://x.com',
-      commissionAmount: 1,
-    };
+  it('requires a client — an offer with nobody to deliver to has no purpose', async () => {
     await expect(
-      service.create({ ...base, campaignId: '', clientId: chain.clientId }),
-    ).rejects.toBeInstanceOf(ValidationError);
-    await expect(
-      service.create({ ...base, campaignId: chain.campaignId, clientId: '' }),
+      service.create({
+        clientId: '',
+        offerCode: 'X1',
+        name: 'X',
+        destinationUrl: 'https://x.com',
+        commissionAmount: 1,
+      }),
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
-  it('rejects a campaign or client that does not exist', async () => {
+  it('allows a standalone offer with NO product and NO campaign', async () => {
+    // Decision 3: an admin may create an offer that belongs to no programme.
+    const offer = await service.create({
+      clientId: chain.clientId,
+      offerCode: 'SOLO1',
+      name: 'Standalone',
+      destinationUrl: 'https://x.com',
+      commissionAmount: 250,
+    });
+
+    expect(offer.campaignId).toBeUndefined();
+    expect(offer.productId).toBeUndefined();
+    expect(offer.clientId).toBe(chain.clientId);
+    expect((await service.listUnassigned()).some((o) => o.id === offer.id)).toBe(true);
+  });
+
+  it('allows a product without a campaign, and a campaign without an explicit product', async () => {
+    const withProduct = await service.create({
+      clientId: chain.clientId,
+      productId: chain.productId,
+      offerCode: 'PRODONLY',
+      name: 'Product only',
+      destinationUrl: 'https://x.com',
+      commissionAmount: 1,
+    });
+    expect(withProduct.productId).toBe(chain.productId);
+    expect(withProduct.campaignId).toBeUndefined();
+    expect(await service.listByProduct(chain.productId)).toHaveLength(1);
+
+    const withCampaign = await service.create({
+      clientId: chain.clientId,
+      campaignId: chain.campaignId,
+      offerCode: 'CAMPONLY',
+      name: 'Campaign only',
+      destinationUrl: 'https://x.com',
+      commissionAmount: 1,
+    });
+    expect(withCampaign.campaignId).toBe(chain.campaignId);
+    // Neither is in the unassigned bucket.
+    expect(await service.listUnassigned()).toHaveLength(0);
+  });
+
+  it('rejects a product or campaign whose contradiction would corrupt reporting', async () => {
+    const otherProduct = await chain.repos.products.create({
+      slug: 'home-services-x',
+      name: 'Home Services',
+      status: 'planned',
+    });
+
+    // The campaign belongs to the Real Estate product; claiming Home Services would make
+    // product-grouped and campaign-grouped reports disagree.
+    await expect(
+      service.create({
+        clientId: chain.clientId,
+        productId: otherProduct.id,
+        campaignId: chain.campaignId,
+        offerCode: 'MISMATCH',
+        name: 'Mismatch',
+        destinationUrl: 'https://x.com',
+        commissionAmount: 1,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('rejects a campaign, product or client that does not exist', async () => {
     const base = {
       offerCode: 'X2',
       name: 'X',
@@ -55,6 +121,9 @@ describe('OfferService', () => {
     };
     await expect(
       service.create({ ...base, campaignId: 'missing', clientId: chain.clientId }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      service.create({ ...base, productId: 'missing', clientId: chain.clientId }),
     ).rejects.toBeInstanceOf(NotFoundError);
     await expect(
       service.create({ ...base, campaignId: chain.campaignId, clientId: 'missing' }),

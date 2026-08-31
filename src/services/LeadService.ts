@@ -128,6 +128,27 @@ export class LeadService {
     return this.deps.leads.findRecentByDedupKey(dedupKey, windowMinutes * 60_000);
   }
 
+  /**
+   * Resolve the product and campaign an offer belongs to.
+   *
+   * Both are optional: an admin may create a standalone offer that belongs to no
+   * programme. The product is taken from the offer directly when set, and otherwise
+   * derived through the campaign — so a lead is filed under the right vertical whichever
+   * way the offer was configured, and under neither when it genuinely has none.
+   */
+  private async resolveHierarchy(offer: {
+    productId?: string;
+    campaignId?: string;
+  }): Promise<{ productId: string | null; campaignId: string | null }> {
+    const campaignId = offer.campaignId ?? null;
+    let productId = offer.productId ?? null;
+    if (!productId && campaignId) {
+      const campaign = await this.deps.campaigns.getById(campaignId);
+      productId = campaign?.productId ?? null;
+    }
+    return { productId, campaignId };
+  }
+
   /** Resolve attribution by priority: param ref > cookie ref > offerHint (offer only) > none. */
   private async attribute(input: CaptureLeadInput): Promise<{
     publisherId: string | null;
@@ -145,13 +166,13 @@ export class LeadService {
       if (!ref) continue;
       const r = await this.deps.attribution.resolve(ref);
       if (!r.ok) continue;
-      const campaign = await this.deps.campaigns.getById(r.offer.campaignId);
+      const { productId, campaignId } = await this.resolveHierarchy(r.offer);
       return {
         publisherId: r.publisher.id,
         offerId: r.offer.id,
         clientId: r.offer.clientId,
-        productId: campaign?.productId ?? null,
-        campaignId: r.offer.campaignId,
+        productId,
+        campaignId,
         refCode: r.refCode,
         source,
       };
@@ -161,13 +182,13 @@ export class LeadService {
     if (input.offerHint) {
       const offer = await this.deps.offers.getByCode(input.offerHint);
       if (offer) {
-        const campaign = await this.deps.campaigns.getById(offer.campaignId);
+        const { productId, campaignId } = await this.resolveHierarchy(offer);
         return {
           publisherId: null,
           offerId: offer.id,
           clientId: offer.clientId,
-          productId: campaign?.productId ?? null,
-          campaignId: offer.campaignId,
+          productId,
+          campaignId,
           refCode: null,
           source: null,
         };

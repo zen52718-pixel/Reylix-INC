@@ -29,7 +29,6 @@ const EnvSchema = z
     ALLOWED_REDIRECT_HOSTS: z.string().default(''),
 
     // admin access (Supabase Auth account must ALSO be on this allow-list)
-    SESSION_SECRET: z.string().min(1).default('dev-insecure-session-secret-change-me'),
     ADMIN_EMAILS: z.string().default(''), // comma-separated admin emails
     ADMIN_PASSWORD: z.string().optional(),
 

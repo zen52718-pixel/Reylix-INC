@@ -29,8 +29,11 @@ export const PRODUCT_STATUSES = [
 ] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
-export const PUBLISHER_STATUSES = ['pending', 'active', 'suspended'] as const;
+export const PUBLISHER_STATUSES = ['pending', 'active', 'rejected', 'suspended'] as const;
 export type PublisherStatus = (typeof PUBLISHER_STATUSES)[number];
+
+/** The only status permitted to use the publisher portal. */
+export const PORTAL_ACCESS_STATUS: PublisherStatus = 'active';
 
 export const LEAD_STATUSES = ['new', 'approved', 'rejected', 'paid'] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
@@ -135,7 +138,13 @@ export interface Campaign {
  */
 export interface Offer {
   id: string;
-  campaignId: string;
+  /**
+   * Product and campaign are BOTH optional: an admin may create a standalone offer that
+   * belongs to no programme. When both are set they must agree — a database trigger
+   * rejects an offer whose product does not match its campaign's product.
+   */
+  productId?: string;
+  campaignId?: string;
   clientId: string;
   offerCode: string; // unique, e.g. MVA1
   name: string;

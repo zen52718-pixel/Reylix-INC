@@ -58,6 +58,26 @@ export class SupabaseOfferRepo implements OfferRepo {
     return rows(res as never, 'offers.listByCampaign').map(offerFromRow);
   }
 
+  async listByProduct(productId: string): Promise<Offer[]> {
+    const res = await getServiceClient()
+      .from(TABLE)
+      .select('*')
+      .eq('product_id', productId)
+      .order('created_at', { ascending: false });
+    return rows(res as never, 'offers.listByProduct').map(offerFromRow);
+  }
+
+  /** Offers with neither a product nor a campaign — surfaced as 'unassigned'. */
+  async listUnassigned(): Promise<Offer[]> {
+    const res = await getServiceClient()
+      .from(TABLE)
+      .select('*')
+      .is('product_id', null)
+      .is('campaign_id', null)
+      .order('created_at', { ascending: false });
+    return rows(res as never, 'offers.listUnassigned').map(offerFromRow);
+  }
+
   async create(o: Omit<Offer, 'id' | 'createdAt'>): Promise<Offer> {
     const res = await getServiceClient()
       .from(TABLE)

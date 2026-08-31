@@ -34,6 +34,15 @@ export class MemoryOfferRepo implements OfferRepo {
     return [...this.store.values()].filter((o) => o.campaignId === campaignId);
   }
 
+  async listByProduct(productId: string): Promise<Offer[]> {
+    return [...this.store.values()].filter((o) => o.productId === productId);
+  }
+
+  /** Offers with neither a product nor a campaign — surfaced as 'unassigned'. */
+  async listUnassigned(): Promise<Offer[]> {
+    return [...this.store.values()].filter((o) => !o.productId && !o.campaignId);
+  }
+
   async create(o: Omit<Offer, 'id' | 'createdAt'>): Promise<Offer> {
     const offer: Offer = { ...o, id: randomUUID(), createdAt: new Date().toISOString() };
     this.store.set(offer.id, offer);

@@ -88,6 +88,9 @@ export interface OfferRepo {
   listActive(): Promise<Offer[]>;
   listByClient(clientId: string): Promise<Offer[]>;
   listByCampaign(campaignId: string): Promise<Offer[]>;
+  listByProduct(productId: string): Promise<Offer[]>;
+  /** Offers belonging to no product and no campaign — the 'unassigned' bucket. */
+  listUnassigned(): Promise<Offer[]>;
   create(o: Omit<Offer, 'id' | 'createdAt'>): Promise<Offer>;
   update(id: string, patch: Partial<Offer>): Promise<Offer>;
 }

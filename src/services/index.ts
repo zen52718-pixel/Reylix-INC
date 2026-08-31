@@ -61,7 +61,7 @@ export function getServices(): Services {
       products: new ProductService(repos.products, audit),
       campaigns: new CampaignService(repos.campaigns, repos.products, audit),
       publishers: new PublisherService(repos.publishers, audit),
-      offers: new OfferService(repos.offers, repos.campaigns, repos.clients),
+      offers: new OfferService(repos.offers, repos.campaigns, repos.clients, repos.products),
       attribution,
       leads: new LeadService({
         leads: repos.leads,
