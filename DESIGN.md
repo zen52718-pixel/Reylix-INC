@@ -45,13 +45,22 @@ Never an accent scattered for warmth.
 | Code | On card | On steel (`-up`) | Meaning |
 |---|---|---|---|
 | orange | `#b83f16` | `#ef8b5a` | Primary action, active state, Real Estate |
-| green | `#186252` | `#5cbfa4` | Complete / confirmed, Insurance |
+| green | `#186252` | `#5cbfa4` | Insurance |
 | blue | `#234f74` | `#87b6e0` | Legal |
 | amber | `#8f6410` | `#e3b053` | Home Services |
 | plum | `#6d2c47` | `#d691ad` | **The publisher network**, Healthcare |
 
 The `-up` values exist because the deep plastics sink into the cabinet and fall under the 3:1
 a rule needs to read as a signal. Same code, two grounds — never two different codes.
+
+**A signal colour appears only where it codes something.** Orange is the structural rule
+used by every section heading; the other four appear solely as the industry index
+(`VERTICAL_HUE`) and the publisher path. Using an industry's code as a section-rule colour
+elsewhere on the site is decoration, and it is the exact failure this system exists to
+prevent — an early draft of this build did it on five sections and had to be corrected.
+
+**An unlit tab has no colour on it at all.** `SignalTab inert` renders card-shade with a
+hairline ring: the absence of a code, not a second one. Unlit stages use it.
 
 **Plum carries the publisher side of the business everywhere it appears.** `/for-publishers`
 and `/become-a-partner` are plum from the page header through to the closing CTA. That is a
@@ -87,6 +96,10 @@ Both self-hosted at build time by `next/font`, so no request leaves the visitor'
 
 ## Composition rules
 
+0. **The first viewport carries the thesis.** The five stages are signal tabs clipped to the
+   hero card's right edge, staggered so all five are visible at once, the first lit. The whole
+   direction rests on "every stage readable from the edge without opening anything" — a ruled
+   list there would say the same words and prove none of it.
 1. **No kicker, ever.** A reference datum is set at the **end of its heading's line**,
    catalog-style — title left, catalogue number right, one rule across the top. It is never a
    small tracked label stacked above a heading. That stacked label appeared on every section
@@ -121,16 +134,23 @@ Defined in `components/marketing/primitives.tsx`:
 Shadows carry a real offset and a soft blur (`shadow-pull`, `shadow-rest`) — never a
 zero-offset coloured halo.
 
-One authored moment: `.seat`, cards settling into the file on first paint, staggered 60–70ms
-along a rail, easing `cubic-bezier(0.16, 1, 0.3, 1)`. It animates **from an already-visible
-default** (opacity 0.55, not 0), so nothing is hidden if the animation never runs. Hover
-motion is reserved for the pull tab alone. `prefers-reduced-motion` collapses all of it.
+One authored moment: `.seat`, on the hero card alone. It animates **from an already-visible
+default** (opacity 0.55, not 0), so nothing is hidden if the animation never runs. It was
+briefly applied to every section rail too — that is one identical entrance repeated, which the
+craft floor refuses, and worse it fired on load while those sections were 2,000px below the
+fold, so no visitor ever saw it. Hover motion is reserved for the pull tab alone.
+`prefers-reduced-motion` collapses all of it.
 
 ## Browser surfaces
 
 Themed from the palette in `app/globals.css`, because the parts nobody draws still carry the
 design: text selection, the caret, the focus ring, scrollbar track and thumb, underline
 offset, and tabular figures on `time`, `data`, `th`, `td` and `.datum`.
+
+The two controls a browser draws for you are themed rather than shipped at default:
+`.rx-select` replaces the native arrow, and `.rx-check` replaces the checkbox — whose default
+square reads as already-ticked against buff card stock. Field names, values, validation,
+endpoints and the stored consent wording are untouched by either.
 
 ## Verification
 
@@ -143,7 +163,9 @@ a valid mobile screenshot; do not trust one produced that way.
 
 ## Open
 
-- The homepage reserves a slot for **one real client system**. Until its URL and screenshots
-  exist, that section is absent rather than filled with placeholder proof.
+- The homepage reserves a slot for **one real client system** at `CLIENT_SYSTEM` in
+  `app/(marketing)/page.tsx`. It is reserved in code rather than as a visible placeholder: a
+  marketing page telling visitors its proof is pending is worse than one that does not raise
+  the subject. Fill the constant and the section renders itself.
 - Production domain, contact email, city and state of incorporation remain undecided and are
   not stated anywhere on the site.

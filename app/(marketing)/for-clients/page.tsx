@@ -68,7 +68,6 @@ export default function ForClientsPage() {
         <SectionHead
           title="Five stages you never have to stitch together."
           datum="How it works"
-          hue="green"
         />
         <div className="mt-12">
           <Stages items={STAGES} />
@@ -76,7 +75,7 @@ export default function ForClientsPage() {
       </Section>
 
       <Section className="bg-steel-900">
-        <SectionHead title="What we need from you." datum="Working with us" hue="amber" />
+        <SectionHead title="What we need from you." datum="Working with us" />
         <div className="mt-10">
           <Prose>
             <p>
@@ -89,7 +88,7 @@ export default function ForClientsPage() {
               qualifies a good customer, what you want to know before a first conversation, and
               access to the CRM and calendar your team already works in.
             </p>
-            <p className="border-l-2 border-signal-amber-up pl-5 text-card">
+            <p className="border-t border-steel-500 pt-5 text-card">
               You keep your data. Customer records live in your CRM, under your account, and the
               relationship with your customers stays yours.
             </p>

@@ -54,7 +54,7 @@ export default function ForPublishersPage() {
         <SectionHead title="From link to payout." datum="How it works" hue="plum" />
         <ol className="mt-12 grid gap-x-px gap-y-6 sm:grid-cols-2 lg:grid-cols-4 lg:gap-y-0">
           {FLOW.map((s, i) => (
-            <li key={s.n} className="seat flex flex-col" style={{ animationDelay: `${i * 70}ms` }}>
+            <li key={s.n} className="flex flex-col">
               <div className="flex items-end gap-1 pl-4">
                 <SignalTab hue="plum">{s.n}</SignalTab>
               </div>
@@ -107,7 +107,7 @@ export default function ForPublishersPage() {
               window are recorded but not counted as unique. Attributed leads, approved leads and
               commission are all visible to you.
             </p>
-            <p className="border-l-2 border-signal-plum-up pl-5 text-card">
+            <p className="border-t border-steel-500 pt-5 text-card">
               When a lead is rejected, you see the reason. A rejection without a stated reason is
               not something we ask you to accept.
             </p>

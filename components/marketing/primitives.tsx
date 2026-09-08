@@ -67,15 +67,20 @@ export const VERTICAL_HUE: Record<string, SignalHue> = {
 export function SignalTab({
   children,
   hue = 'orange',
+  inert = false,
   className = '',
 }: {
   children: ReactNode;
   hue?: SignalHue;
+  /** A tab with no code clipped to it. Not a second colour — the absence of one. */
+  inert?: boolean;
   className?: string;
 }) {
   return (
     <span
-      className={`tabtype inline-flex items-center gap-1.5 px-2.5 py-1 text-card ${TAB_SURFACE[hue]} ${className}`}
+      className={`tabtype inline-flex items-center gap-1.5 px-2.5 py-1 ${
+        inert ? 'bg-card-shade text-ink-soft ring-1 ring-inset ring-card-rule' : `text-card ${TAB_SURFACE[hue]}`
+      } ${className}`}
       style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0.5rem 100%, 0 calc(100% - 0.35rem))' }}
     >
       {children}
@@ -231,9 +236,9 @@ export function Stages({
   return (
     <ol className="grid gap-x-px gap-y-6 sm:grid-cols-2 lg:grid-cols-5 lg:gap-y-0">
       {items.map((s, i) => (
-        <li key={s.n} className="seat flex flex-col" style={{ animationDelay: `${i * 70}ms` }}>
+        <li key={s.n} className="flex flex-col">
           <div className="flex items-end gap-1 pl-4">
-            <SignalTab hue={i === 0 ? 'orange' : 'green'}>{s.n}</SignalTab>
+            <SignalTab inert={i !== 0}>{s.n}</SignalTab>
           </div>
           <div className="flex flex-1 flex-col border-t-2 border-card-edge bg-card px-5 py-6 shadow-rest">
             <h3 className="font-gothic text-xl font-bold uppercase leading-none tracking-display text-ink">

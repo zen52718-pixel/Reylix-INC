@@ -46,10 +46,10 @@ export default function ProductsPage() {
 
       {/* The drawer, pulled open: one card per system, every tab visible at once. */}
       <Section>
-        <SectionHead title="The systems." datum="Index" hue="blue" />
+        <SectionHead title="The systems." datum="Index" />
         <div className="mt-12 space-y-8">
           {VERTICALS.map((v, i) => (
-            <article key={v.slug} id={v.slug} className="seat scroll-mt-24" style={{ animationDelay: `${i * 60}ms` }}>
+            <article key={v.slug} id={v.slug} className="scroll-mt-24">
               <RecordCard
                 tabs={
                   <>
@@ -123,7 +123,6 @@ export default function ProductsPage() {
         <SectionHead
           title="What every system has underneath it."
           datum="Shared infrastructure"
-          hue="green"
         />
         <div className="mt-10">
           <Prose>

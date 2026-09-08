@@ -110,6 +110,33 @@
   .datum {
     @apply font-gothic text-datum font-medium uppercase;
   }
+
+  /* The two controls a browser draws for you. Left alone they are the only undesigned
+     elements on a site arguing that it builds designed systems — and the default checkbox
+     square reads as already-ticked against buff card stock. */
+  .rx-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 12'%3E%3Cpath d='M2 2.5l8 7.5 8-7.5' fill='none' stroke='%234a534e' stroke-width='2.25'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    background-size: 0.8rem;
+    padding-right: 2.5rem;
+  }
+
+  .rx-check {
+    appearance: none;
+    background-color: #ffffff;
+    border: 1px solid theme('colors.card.edge');
+  }
+
+  .rx-check:checked {
+    background-color: theme('colors.signal.orange');
+    border-color: theme('colors.signal.orange');
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3.2L12.5 4.8' fill='none' stroke='%23f4f2ec' stroke-width='2.4' stroke-linecap='square'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 0.8rem;
+  }
 }
 
 @layer utilities {

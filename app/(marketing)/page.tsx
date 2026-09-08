@@ -22,6 +22,37 @@ const DISCONNECTED = [
   'Appointment booking',
 ];
 
+/**
+ * The automation run sheet. Every line is lifted from the copy this section already carried —
+ * these are restructured sentences, not new claims about what the system does.
+ */
+const AUTOMATED = [
+  'Responds quickly, without waiting for someone to be free.',
+  'Asks the qualifying questions that industry requires.',
+  'Collects what is missing from the first submission.',
+  'Provides the information the prospect actually asked for.',
+  'Guides the prospect toward the next step.',
+  'Runs follow-up on its own.',
+  'Schedules the appointment.',
+  'Updates the CRM, and notifies the business when a conversation needs a person.',
+];
+
+/**
+ * THE RESERVED PROOF SLOT.
+ *
+ * PRODUCT.md and the direction contract both require a place for the one piece of real
+ * evidence Reylix has: a live client acquisition system the company actually built. Its URL
+ * and screenshots have not been supplied yet.
+ *
+ * The slot is reserved HERE, in code, rather than as a visible placeholder on a public page —
+ * a marketing site telling visitors that its proof is pending is worse than a site that does
+ * not raise the subject. Fill this in and the section renders itself; nothing else changes.
+ *
+ * Do not populate this with an example, a competitor, a demo, or anything Reylix did not
+ * build and cannot point at. An empty slot is the correct state until then.
+ */
+const CLIENT_SYSTEM: { name: string; href: string; summary: string } | null = null;
+
 /** The break between two vendors. Drawn, at icon scale, in one consistent stroke. */
 function Handoff() {
   return (
@@ -46,7 +77,7 @@ export default function HomePage() {
           tabs={
             <>
               <SignalTab>Reylix INC</SignalTab>
-              <SignalTab hue="green">Customer acquisition</SignalTab>
+              <SignalTab inert>Customer acquisition</SignalTab>
             </>
           }
         >
@@ -72,25 +103,38 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* The index down the card's right edge: what the system is made of, in order. */}
-            {/* The closing line is pinned to the foot of the card, so the index column ends
-                with the card rather than leaving a hole under the last stage. */}
+            {/*
+              The five stages as signal tabs clipped to the card's right edge, staggered so
+              every one is visible at once and the first is lit. This is the thesis: the whole
+              system readable from the edge of the file without opening anything. It belongs in
+              the first viewport — a ruled list here would say the same words and prove nothing.
+            */}
             <div className="flex flex-col border-t border-card-rule px-6 py-10 sm:px-10 lg:border-l lg:border-t-0 lg:py-14">
-              <ol className="space-y-0">
-                {STAGES.map((s) => (
-                  <li
-                    key={s.n}
-                    className="flex items-baseline gap-5 border-b border-card-rule py-3.5 last:border-0"
-                  >
-                    <span className="datum w-6 shrink-0 text-signal-orange">{s.n}</span>
-                    <span className="font-gothic text-lg font-semibold uppercase tracking-tab text-ink">
-                      {s.title}
+              <ol className="space-y-1.5">
+                {STAGES.map((s, i) => (
+                  <li key={s.n} style={{ paddingLeft: `${i * 0.75}rem` }}>
+                    <span
+                      className={`flex items-center gap-4 py-2.5 pl-4 pr-3 ${
+                        i === 0
+                          ? 'bg-signal-orange text-card'
+                          : 'bg-card-shade text-ink-soft ring-1 ring-inset ring-card-rule'
+                      }`}
+                      style={{
+                        clipPath:
+                          'polygon(0.55rem 0, 100% 0, 100% 100%, 0.55rem 100%, 0 calc(100% - 0.4rem), 0 0.4rem)',
+                      }}
+                    >
+                      <span className="datum w-5 shrink-0 opacity-80">{s.n}</span>
+                      <span className="font-gothic text-lg font-semibold uppercase leading-none tracking-tab">
+                        {s.title}
+                      </span>
                     </span>
                   </li>
                 ))}
               </ol>
               <p className="mt-8 border-t border-card-rule pt-5 text-fine text-ink-faint lg:mt-auto">
-                Five stages, one system, one accountable owner.
+                Five stages, one system, one accountable owner. The lit tab is where a new
+                prospect enters.
               </p>
             </div>
           </div>
@@ -109,10 +153,12 @@ export default function HomePage() {
             <ul className="flex flex-wrap items-stretch gap-y-4">
               {DISCONNECTED.map((tool, i) => (
                 <li key={tool} className="flex items-center">
-                  {i > 0 && <Handoff />}
                   <span className="border-t-2 border-card-edge bg-card px-4 py-3 font-gothic text-[0.9375rem] font-semibold uppercase tracking-tab text-ink">
                     {tool}
                   </span>
+                  {/* The mark trails its chip, so a wrap can never start a line with a
+                      chevron pointing at nothing. */}
+                  {i < DISCONNECTED.length - 1 && <Handoff />}
                 </li>
               ))}
             </ul>
@@ -133,7 +179,7 @@ export default function HomePage() {
               record that never reaches the CRM. Every handoff is a place where an opportunity
               quietly stops moving.
             </p>
-            <p className="border-l-2 border-signal-orange-up pl-5 text-card">
+            <p className="border-t border-steel-500 pt-5 text-card">
               Most businesses do not have a lead problem. They have an acquisition system
               problem.
             </p>
@@ -146,7 +192,6 @@ export default function HomePage() {
         <SectionHead
           title="One acquisition system. Built around your industry."
           datum="Ref. 02"
-          hue="green"
         />
         <div className="mt-10 grid gap-8 text-body text-steel-200 lg:grid-cols-2 lg:gap-16">
           <p className="max-w-measure">
@@ -180,7 +225,6 @@ export default function HomePage() {
         <SectionHead
           title="Built around the way each industry acquires customers."
           datum="Ref. 04"
-          hue="blue"
         />
         <div className="mt-8 flex flex-wrap items-baseline justify-between gap-6">
           <p className="max-w-measure text-body text-steel-200">
@@ -197,7 +241,7 @@ export default function HomePage() {
 
         <ul className="mt-12 space-y-6">
           {VERTICALS.map((v, i) => (
-            <li key={v.slug} className="seat" style={{ animationDelay: `${i * 60}ms` }}>
+            <li key={v.slug}>
               <RecordCard
                 tabs={
                   <SignalTab hue={VERTICAL_HUE[v.slug]}>
@@ -248,7 +292,7 @@ export default function HomePage() {
               scheduled.
             </p>
           </RecordCard>
-          <RecordCard tabs={<SignalTab hue="green">Sellers</SignalTab>}>
+          <RecordCard tabs={<SignalTab>Sellers</SignalTab>}>
             <p className="px-6 py-8 text-fine leading-relaxed text-ink-soft sm:px-9 sm:text-body">
               A seller requests a valuation, submits property information and enters a seller
               qualification workflow. Follow-up runs automatically, and the outcome is a
@@ -263,37 +307,73 @@ export default function HomePage() {
         </p>
       </Section>
 
+      {/* The reserved proof slot. Renders only once there is something real to put in it. */}
+      {CLIENT_SYSTEM && (
+        <Section className="bg-steel-900">
+          <SectionHead title="A system already running." datum="Ref. 05a · In operation" />
+          <div className="mt-12">
+            <RecordCard tabs={<SignalTab>{CLIENT_SYSTEM.name}</SignalTab>}>
+              <div className="px-6 py-8 sm:px-9">
+                <p className="max-w-measure text-body leading-relaxed text-ink-soft">
+                  {CLIENT_SYSTEM.summary}
+                </p>
+                <a
+                  href={CLIENT_SYSTEM.href}
+                  className="mt-6 inline-block font-gothic text-[0.9375rem] font-semibold uppercase tracking-tab text-signal-orange underline decoration-card-edge underline-offset-4 transition-colors hover:decoration-signal-orange"
+                >
+                  See it running &rarr;
+                </a>
+              </div>
+            </RecordCard>
+          </div>
+        </Section>
+      )}
+
       {/* AI and automation — infrastructure, not a replacement for people. */}
       <Section>
         <SectionHead
           title="The system keeps working after the form is submitted."
           datum="Ref. 06"
-          hue="amber"
         />
-        <div className="mt-10 lg:pl-[38%]">
-          <Prose>
-            <p>
-              Capturing a lead is the beginning, not the outcome. Automation and AI agents
-              respond quickly, ask the qualifying questions the industry requires, collect what
-              is missing, provide the information a prospect asked for and guide them toward the
-              next step.
+        {/*
+          These were eight discrete actions written as two paragraphs of prose, which made this
+          section structurally identical to the CRM section below it. Set as the run sheet it
+          actually is — same words, no new claims.
+        */}
+        <div className="mt-12 grid gap-10 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
+          <div>
+            <p className="max-w-measure text-body text-steel-200">
+              Capturing a lead is the beginning, not the outcome. Automation and AI agents keep
+              working the record after the form is submitted.
             </p>
-            <p>
-              Follow-up runs on its own. Appointments are scheduled. The CRM is updated. When a
-              conversation needs a person, the business is notified.
-            </p>
-            <p className="border-l-2 border-signal-amber-up pl-5 text-card">
+            <p className="mt-6 max-w-measure border-t border-steel-500 pt-5 text-body text-card">
               This is infrastructure for responding faster and removing repetitive manual work —
               not a replacement for the people who close the business.
             </p>
-          </Prose>
+          </div>
+
+          <RecordCard tabs={<SignalTab>What runs on its own</SignalTab>}>
+            <ol>
+              {AUTOMATED.map((step, i) => (
+                <li
+                  key={step}
+                  className="flex items-baseline gap-5 border-b border-card-rule px-6 py-3.5 last:border-0 sm:px-8"
+                >
+                  <span className="datum w-6 shrink-0 text-ink-faint">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <span className="text-fine leading-relaxed text-ink-soft">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </RecordCard>
         </div>
       </Section>
 
       {/* CRM. */}
       <Section className="bg-steel-900">
-        <SectionHead title="Every conversation has a place to go." datum="Ref. 07" hue="blue" />
-        <div className="mt-10 lg:pl-[38%]">
+        <SectionHead title="Every conversation has a place to go." datum="Ref. 07" />
+        <div className="mt-10">
           <Prose>
             <p>
               Opportunities should not end up in spreadsheets, inboxes or a follow-up list nobody

@@ -124,7 +124,7 @@ export function SelectField({
       <Label htmlFor={id} required={required}>
         {label}
       </Label>
-      <select id={id} name={name} required={required} className={fieldClass}>
+      <select id={id} name={name} required={required} className={`${fieldClass} rx-select`}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -145,7 +145,7 @@ export function ConsentField({ name, wording }: { name: string; wording: string 
         name={name}
         type="checkbox"
         required
-        className="mt-1 h-4 w-4 shrink-0 rounded-none border-card-edge text-signal-orange focus:ring-signal-orange"
+        className="rx-check mt-0.5 h-5 w-5 shrink-0 rounded-none"
       />
       <label htmlFor={id} className="text-[0.875rem] leading-relaxed text-ink-soft">
         {wording}
@@ -204,7 +204,7 @@ export function FormError({ message }: { message: string }) {
   return (
     <p
       role="alert"
-      className="border-l-2 border-signal-orange bg-card-shade px-4 py-3 text-[0.9375rem] text-ink"
+      className="border-t-2 border-signal-orange bg-card-shade px-4 py-3 text-[0.9375rem] text-ink"
     >
       {message}
     </p>
@@ -213,7 +213,7 @@ export function FormError({ message }: { message: string }) {
 
 export function FormSuccess({ title, body }: { title: string; body: string }) {
   return (
-    <div role="status" className="border-l-2 border-signal-green bg-card-shade px-6 py-7">
+    <div role="status" className="border-t-2 border-signal-green bg-card-shade px-6 py-7">
       <h3 className="font-gothic text-2xl font-bold uppercase leading-none tracking-display text-ink">
         {title}
       </h3>

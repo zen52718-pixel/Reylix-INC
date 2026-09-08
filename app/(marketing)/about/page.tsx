@@ -62,7 +62,6 @@ export default function AboutPage() {
         <SectionHead
           title="Build once. Configure intelligently. Improve continuously."
           datum="Philosophy"
-          hue="green"
         />
         <div className="mt-10">
           <Prose>
@@ -82,7 +81,7 @@ export default function AboutPage() {
 
       {/* The two sides, set as two planes with the cabinet showing between them. */}
       <Section className="bg-steel-900">
-        <SectionHead title="Two sides, deliberately separate." datum="The model" hue="blue" />
+        <SectionHead title="Two sides, deliberately separate." datum="The model" />
         <div className="mt-12 grid gap-8 lg:grid-cols-2">
           <div className="border-t-2 border-signal-orange-up pt-6">
             <h3 className="font-gothic text-2xl font-bold uppercase leading-none tracking-display text-card">
@@ -104,7 +103,7 @@ export default function AboutPage() {
             </p>
           </div>
         </div>
-        <p className="mt-10 max-w-measure border-l-2 border-card pl-5 text-body text-card">
+        <p className="mt-10 max-w-measure border-t border-steel-500 pt-5 text-body text-card">
           These are kept strictly apart. A publisher&rsquo;s relationship with us has nothing to
           do with a client&rsquo;s relationship with their own customers, and the two are never
           mixed into one pile of records.
@@ -112,7 +111,7 @@ export default function AboutPage() {
       </Section>
 
       <Section>
-        <SectionHead title="Real Estate first, by design." datum="Where we are" hue="amber" />
+        <SectionHead title="Real Estate first, by design." datum="Where we are" />
         <div className="mt-10">
           <Prose>
             <p>
