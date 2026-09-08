@@ -16,12 +16,12 @@ export default function TermsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Legal"
         title="Terms of Service"
+        datum="Legal"
         standfirst="This is a placeholder. Full terms are being prepared with legal counsel and have not been published yet."
       />
 
-      <Section label="Status" title="Terms are pending.">
+      <Section title="Terms are pending." datum="Status">
         <Prose>
           <p>
             {LEGAL_NAME} has not yet published terms of service for this website. Rather than post
@@ -30,7 +30,7 @@ export default function TermsPage() {
         </Prose>
       </Section>
 
-      <Section label="In the meantime" title="What this site is.">
+      <Section title="What this site is." datum="In the meantime">
         <Prose>
           <p>
             This website is informational. Nothing on it is an offer, a contract, or a guarantee
@@ -44,7 +44,7 @@ export default function TermsPage() {
         </Prose>
       </Section>
 
-      <Section label="Questions" title="Ask before relying on anything here.">
+      <Section title="Ask before relying on anything here." datum="Questions">
         <Prose>
           <p>
             If you need something on this site confirmed in writing before you act on it, ask

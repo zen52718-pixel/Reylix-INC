@@ -4,8 +4,10 @@
 
 @layer base {
   :root {
-    --background: #ffffff;
-    --foreground: #171b30;
+    --ground: #2e3836;
+    --on-ground: #f4f2ec;
+    --rule: #d3cec0;
+    color-scheme: dark;
   }
 
   html {
@@ -14,24 +16,69 @@
   }
 
   body {
-    background: var(--background);
-    color: var(--foreground);
+    background: var(--ground);
+    color: var(--on-ground);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
-  /* Headings set their own tracking; this keeps long lines from breaking badly. */
   h1,
   h2,
   h3 {
     text-wrap: balance;
   }
 
-  /* A visible focus ring everywhere, since the site is heavily keyboard-navigable. */
+  /* Figures in a record system are read in columns. Tabular by default everywhere. */
+  :where(time, data, .datum, th, td) {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* --- Browser surfaces -------------------------------------------------------------
+     The parts nobody draws still carry the design. Left at their defaults they announce
+     that a page was assembled rather than built, so they are themed from the palette. */
+
+  ::selection {
+    background: #b83f16;
+    color: #f4f2ec;
+  }
+
+  :where(input, textarea) {
+    caret-color: #b83f16;
+  }
+
   :focus-visible {
-    outline: 2px solid theme('colors.brand.600');
-    outline-offset: 3px;
-    border-radius: 2px;
+    outline: 2px solid #b83f16;
+    outline-offset: 2px;
+    border-radius: 0;
+  }
+
+  /* Links inside prose sit on their own baseline rather than colliding with descenders. */
+  :where(a) {
+    text-underline-offset: 0.22em;
+    text-decoration-thickness: from-font;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #535d58 #232b2a;
+  }
+
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #232b2a;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #535d58;
+    border: 3px solid #232b2a;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #6b756f;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -49,14 +96,39 @@
 }
 
 @layer components {
-  /* The recurring "instrument label": small, spaced, monospace. Used for eyebrows,
-     table headers, and figure captions so the whole site shares one voice for metadata. */
-  .label {
-    @apply font-mono text-[0.68rem] font-medium uppercase tracking-label;
+  /* Page gutter. One definition, so every rail and every card edge lines up. */
+  .gutter {
+    @apply mx-auto w-full max-w-[78rem] px-5 sm:px-8 lg:px-10;
   }
 
-  /* Page gutter. One definition so every section lines up on the same grid. */
-  .gutter {
-    @apply mx-auto w-full max-w-6xl px-5 sm:px-8 lg:px-12;
+  /* Tab lettering: the stamped caps on a plastic signal tab. Never below 12px. */
+  .tabtype {
+    @apply font-gothic text-tab font-semibold uppercase;
+  }
+
+  /* The reference datum every element carries in its fixed caption slot. */
+  .datum {
+    @apply font-gothic text-datum font-medium uppercase;
+  }
+}
+
+@layer utilities {
+  /* One authored moment: cards rise into place on first paint, staggered along the rail,
+     from an already-visible default so nothing is hidden if the animation never runs. */
+  @keyframes seat {
+    from {
+      transform: translateY(14px);
+      opacity: 0.55;
+      filter: blur(3px);
+    }
+    to {
+      transform: none;
+      opacity: 1;
+      filter: none;
+    }
+  }
+
+  .seat {
+    animation: seat 0.72s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 }
