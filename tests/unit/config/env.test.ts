@@ -24,6 +24,40 @@ function withSupabaseEnv(): void {
 }
 
 describe('env validation', () => {
+  /**
+   * Regression: a present-but-empty variable must be treated as unset.
+   *
+   * `cp .env.example .env`, and every hosting dashboard, produce `KEY=` with an empty value.
+   * An empty string is not undefined — it satisfies neither `.optional()` nor `.default()`,
+   * and it fails `.url()`, `.email()`, `.min(1)` and `.coerce.number().positive()`. One empty
+   * variable used to make loadEnv() throw, which returned HTTP 500 from both public marketing
+   * forms in production while /api/healthz stayed green.
+   */
+  it('treats present-but-empty variables as unset', () => {
+    process.env.STORAGE_BACKEND = '';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = '';
+    process.env.ADMIN_NOTIFY_EMAIL = '';
+    process.env.EMAIL_PROVIDER_API_KEY = '';
+    process.env.REDIRECT_BASE_URL = '';
+    process.env.ATTRIBUTION_WINDOW_DAYS = '';
+    process.env.ADMIN_EMAILS = '';
+    __resetEnv();
+
+    const env = loadEnv();
+    expect(env.STORAGE_BACKEND).toBe('memory');
+    expect(env.NEXT_PUBLIC_SUPABASE_URL).toBeUndefined();
+    expect(env.ADMIN_NOTIFY_EMAIL).toBeUndefined();
+    expect(env.REDIRECT_BASE_URL).toBe('https://go.reylix.com');
+    expect(env.ATTRIBUTION_WINDOW_DAYS).toBe(30);
+    expect(adminEmails()).toEqual([]);
+  });
+
+  it('treats a whitespace-only variable as unset too', () => {
+    process.env.ADMIN_NOTIFY_EMAIL = '   ';
+    __resetEnv();
+    expect(loadEnv().ADMIN_NOTIFY_EMAIL).toBeUndefined();
+  });
+
   it('defaults to the memory backend with no configuration', () => {
     delete process.env.STORAGE_BACKEND;
     __resetEnv();

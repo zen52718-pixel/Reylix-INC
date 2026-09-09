@@ -3,6 +3,7 @@ import { LEGAL_NAME } from '@/components/marketing/content';
 import { PageHeader, Prose, Section } from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/privacy' },
   title: 'Privacy Policy',
   description: 'How Reylix INC handles information collected through this website.',
   robots: { index: false, follow: true },

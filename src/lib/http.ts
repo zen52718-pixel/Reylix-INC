@@ -32,5 +32,15 @@ export function errorResponse(err: unknown): NextResponse {
   if (err instanceof DomainError) {
     return jsonError(STATUS_BY_CODE[err.code], err.code, err.message, err.details);
   }
+  // An unexpected error still returns an opaque body — the client is never told what broke.
+  // But it MUST be recorded, or a 500 is undiagnosable from the platform logs. A production
+  // misconfiguration once took both public forms down and left nothing behind to read.
+  console.error(
+    JSON.stringify({
+      event: 'unhandled_api_error',
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    }),
+  );
   return jsonError(500, 'INTERNAL', 'Unexpected error');
 }

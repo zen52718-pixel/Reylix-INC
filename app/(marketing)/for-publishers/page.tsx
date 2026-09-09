@@ -10,6 +10,7 @@ import {
 } from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/for-publishers' },
   title: 'For Publishers',
   description:
     'Promote Reylix customer acquisition offers with tracked referral links. Transparent attribution, lead approval, commission visibility and payouts under stated offer terms.',

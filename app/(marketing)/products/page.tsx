@@ -12,6 +12,7 @@ import {
 } from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/products' },
   title: 'Industry-Specific Acquisition Systems',
   description:
     'Customer acquisition systems for real estate, home services, legal, insurance and healthcare — capture, qualification, AI engagement, CRM integration and appointment booking in one system.',

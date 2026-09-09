@@ -96,7 +96,7 @@ export default function HomePage() {
                 <PullTab href="/for-clients">I Need Customers</PullTab>
                 <Link
                   href="/become-a-partner"
-                  className="font-gothic text-[0.9375rem] font-semibold uppercase tracking-tab text-ink-soft underline decoration-card-edge underline-offset-4 transition-colors hover:text-signal-orange hover:decoration-signal-orange"
+                  className="inline-block py-1 font-gothic text-[0.9375rem] font-semibold uppercase tracking-tab text-ink-soft underline decoration-card-edge underline-offset-4 transition-colors hover:text-signal-orange hover:decoration-signal-orange"
                 >
                   Or send traffic as a publisher
                 </Link>
@@ -233,7 +233,7 @@ export default function HomePage() {
           </p>
           <Link
             href="/products"
-            className="font-gothic text-[0.9375rem] font-semibold uppercase tracking-tab text-signal-orange-up underline decoration-steel-600 underline-offset-4 transition-colors hover:decoration-signal-orange-up"
+            className="inline-block py-1 font-gothic text-[0.9375rem] font-semibold uppercase tracking-tab text-signal-orange-up underline decoration-steel-600 underline-offset-4 transition-colors hover:decoration-signal-orange-up"
           >
             All systems &rarr;
           </Link>

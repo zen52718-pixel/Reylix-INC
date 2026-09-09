@@ -10,6 +10,7 @@ import {
 } from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/about' },
   title: 'About',
   description:
     'Reylix INC is a United States customer acquisition company building repeatable, industry-specific acquisition systems with AI workflows, automation and CRM integration.',

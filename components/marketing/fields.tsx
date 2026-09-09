@@ -145,7 +145,7 @@ export function ConsentField({ name, wording }: { name: string; wording: string 
         name={name}
         type="checkbox"
         required
-        className="rx-check mt-0.5 h-5 w-5 shrink-0 rounded-none"
+        className="rx-check mt-px h-6 w-6 shrink-0 rounded-none"
       />
       <label htmlFor={id} className="text-[0.875rem] leading-relaxed text-ink-soft">
         {wording}

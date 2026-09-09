@@ -9,6 +9,7 @@ import {
 } from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/contact' },
   title: 'Contact',
   description:
     'Tell us what you are trying to grow, how customers currently find you and where the process breaks down. We will review it and determine whether Reylix is a fit.',
@@ -90,7 +91,7 @@ export default function ContactPage() {
               </p>
               <Link
                 href="/become-a-partner"
-                className="mt-4 inline-block font-gothic text-[0.9375rem] font-semibold uppercase tracking-tab text-signal-plum-up underline decoration-steel-600 underline-offset-4 transition-colors hover:text-card hover:decoration-card"
+                className="mt-4 inline-block py-1 font-gothic text-[0.9375rem] font-semibold uppercase tracking-tab text-signal-plum-up underline decoration-steel-600 underline-offset-4 transition-colors hover:text-card hover:decoration-card"
               >
                 Become a Publisher &rarr;
               </Link>

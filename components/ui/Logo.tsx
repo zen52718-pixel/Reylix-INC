@@ -32,8 +32,8 @@ export function LogoMark({ className = 'h-6 w-6' }: { className?: string }) {
 export function Logo({ className = '' }: { className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
-      <LogoMark className="h-5 w-5 text-brand-700" />
-      <span className="font-display text-[1.05rem] font-bold tracking-tight text-ink-900">
+      <LogoMark className="h-5 w-5 text-signal-orange-up" />
+      <span className="font-gothic text-[1.25rem] font-bold uppercase tracking-tab">
         Reylix
       </span>
     </span>

@@ -43,12 +43,12 @@ export function SiteFooter() {
           <h2 className="border-b border-steel-700 pb-2 font-gothic text-base font-bold uppercase tracking-tab text-card">
             Products
           </h2>
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-3 space-y-1.5">
             {VERTICALS.map((v) => (
               <li key={v.slug}>
                 <Link
                   href={`/products#${v.slug}`}
-                  className="text-fine text-steel-200 transition-colors hover:text-signal-orange-up"
+                  className="inline-block py-1 text-fine text-steel-200 transition-colors hover:text-signal-orange-up"
                 >
                   {v.name}
                 </Link>
@@ -62,12 +62,12 @@ export function SiteFooter() {
             <h2 className="border-b border-steel-700 pb-2 font-gothic text-base font-bold uppercase tracking-tab text-card">
               {col.heading}
             </h2>
-            <ul className="mt-4 space-y-3">
+            <ul className="mt-3 space-y-1.5">
               {col.links.map((l) => (
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className="text-fine text-steel-200 transition-colors hover:text-signal-orange-up"
+                    className="inline-block py-1 text-fine text-steel-200 transition-colors hover:text-signal-orange-up"
                   >
                     {l.label}
                   </Link>

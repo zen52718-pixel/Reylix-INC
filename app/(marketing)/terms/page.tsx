@@ -3,6 +3,7 @@ import { LEGAL_NAME } from '@/components/marketing/content';
 import { PageHeader, Prose, Section } from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/terms' },
   title: 'Terms of Service',
   description: 'Terms governing use of the Reylix INC website.',
   robots: { index: false, follow: true },

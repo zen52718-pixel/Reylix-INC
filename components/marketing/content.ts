@@ -13,15 +13,26 @@
 export const LEGAL_NAME = 'Reylix INC';
 
 /**
- * Canonical origin, used for the sitemap and robots file.
+ * Canonical origin, used for metadataBase, every page's canonical URL, Open Graph, the
+ * sitemap and robots.txt.
  *
- * The production domain has not been chosen yet, so this reads from the environment and
- * falls back to a placeholder. Set NEXT_PUBLIC_SITE_URL in Vercel before launch, or the
- * sitemap will advertise URLs on a domain nobody owns.
+ * Resolution order: NEXT_PUBLIC_SITE_URL, then the host Vercel is serving from, then
+ * localhost. Set NEXT_PUBLIC_SITE_URL once the real domain exists; until then the site
+ * self-describes as its deployment host, which is true, rather than as a domain nobody owns.
  */
 export function siteUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://reylix.com';
-  return raw.replace(/\/$/, '');
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, '');
+
+  // Fall back to the host the deployment is actually served from. Guessing a domain here is
+  // not a cosmetic default: this value becomes every page's canonical URL, and a canonical
+  // pointing at a domain we do not control tells search engines to de-index the real site.
+  // Vercel injects these; VERCEL_URL is the per-deployment host used for previews.
+  const vercel =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim() || process.env.VERCEL_URL?.trim();
+  if (vercel) return `https://${vercel.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
+
+  return 'http://localhost:3000';
 }
 
 export interface NavItem {

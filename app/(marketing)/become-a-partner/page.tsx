@@ -3,6 +3,7 @@ import { PartnerForm } from '@/components/marketing/PartnerForm';
 import { PageHeader, RecordCard, Section, SignalTab } from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/become-a-partner' },
   title: 'Become a Partner',
   description:
     'Apply to the Reylix publisher network. Promote customer acquisition offers with tracked referral links and earn commission on approved leads.',

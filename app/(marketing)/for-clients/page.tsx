@@ -11,6 +11,7 @@ import {
 } from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/for-clients' },
   title: 'For Clients',
   description:
     'A customer acquisition system built around your business — digital presence, lead capture, qualification, AI automation, CRM integration, appointment booking and reporting.',

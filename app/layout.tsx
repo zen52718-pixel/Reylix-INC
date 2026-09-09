@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Public_Sans, Saira_Condensed } from 'next/font/google';
+import { siteUrl } from '@/components/marketing/content';
 import './globals.css';
 
 /**
@@ -27,13 +28,32 @@ const text = Public_Sans({
   display: 'swap',
 });
 
+const TITLE = 'Reylix INC — Customer Acquisition Systems';
+const DESCRIPTION =
+  'Reylix INC builds industry-specific customer acquisition systems — digital presence, lead capture, qualification, AI automation, CRM integration and appointment booking, connected as one system.';
+
 export const metadata: Metadata = {
-  title: {
-    default: 'Reylix INC — Customer Acquisition Systems',
-    template: '%s | Reylix INC',
+  // Without metadataBase, Next resolves social and canonical URLs against localhost and warns
+  // at build time. siteUrl() reads NEXT_PUBLIC_SITE_URL, so this follows the deployment.
+  metadataBase: new URL(siteUrl()),
+  title: { default: TITLE, template: '%s | Reylix INC' },
+  description: DESCRIPTION,
+  applicationName: 'Reylix INC',
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    siteName: 'Reylix INC',
+    title: TITLE,
+    description: DESCRIPTION,
+    url: '/',
+    locale: 'en_US',
   },
-  description:
-    'Reylix INC builds industry-specific customer acquisition systems — digital presence, lead capture, qualification, AI automation, CRM integration and appointment booking, connected as one system.',
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

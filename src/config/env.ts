@@ -58,10 +58,28 @@ export type Env = z.infer<typeof EnvSchema>;
 
 let cached: Env | null = null;
 
+/**
+ * Treat a present-but-empty variable as unset.
+ *
+ * Hosting dashboards and `cp .env.example .env` both produce `KEY=` with an empty value,
+ * and an empty string is NOT undefined: it satisfies neither `.optional()` nor `.default()`,
+ * and it fails `.url()`, `.email()`, `.min(1)` and `.coerce.number().positive()`. Before this
+ * existed, one empty variable made `loadEnv()` throw, which took both public forms down with
+ * an HTTP 500 while `/api/healthz` stayed green because it deliberately avoids this function.
+ * That is exactly what happened in production.
+ */
+function withoutEmptyValues(source: NodeJS.ProcessEnv): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (typeof value === 'string' && value.trim() !== '') out[key] = value;
+  }
+  return out;
+}
+
 /** Validate and cache `process.env`. Throws an aggregated error on misconfiguration. */
 export function loadEnv(): Env {
   if (cached) return cached;
-  const parsed = EnvSchema.safeParse(process.env);
+  const parsed = EnvSchema.safeParse(withoutEmptyValues(process.env));
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`)
