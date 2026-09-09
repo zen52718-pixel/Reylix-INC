@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
 import { STAGES } from '@/components/marketing/content';
-import { CallToAction, PageHeader, Prose, Section, Stages } from '@/components/marketing/primitives';
+import {
+  CallToAction,
+  Manifest,
+  PageHeader,
+  Prose,
+  Section,
+  SectionHead,
+  Stages,
+} from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
   title: 'For Clients',
@@ -43,57 +51,71 @@ export default function ForClientsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="For clients"
         title="A customer acquisition system built around your business."
+        datum="For clients"
         standfirst="A website is not the product. We deploy the acquisition infrastructure around the business — presence, capture, qualification, engagement, CRM and booking, connected as one system."
       />
 
-      <Section label="What gets deployed" title="The whole path, not a piece of it.">
-        <ul className="mt-12 grid gap-px overflow-hidden border border-ink-200 bg-ink-200 sm:grid-cols-2 lg:grid-cols-3">
-          {INCLUDED.map((item) => (
-            <li key={item.title} className="bg-white p-6">
-              <h3 className="font-display text-base font-semibold text-ink-900">{item.title}</h3>
-              <p className="mt-2 text-[0.94rem] leading-relaxed text-ink-600">{item.body}</p>
-            </li>
-          ))}
-        </ul>
+      {/* The manifest: one ruled line per component, numbered, at catalogue density. */}
+      <Section className="bg-steel-900">
+        <SectionHead title="The whole path, not a piece of it." datum="What gets deployed" />
+        <div className="mt-12">
+          <Manifest items={INCLUDED} tab="Manifest · 7 components" />
+        </div>
       </Section>
 
-      <Section label="How it works" title="Five stages you never have to stitch together.">
-        <Stages items={STAGES} />
+      <Section>
+        <SectionHead
+          title="Five stages you never have to stitch together."
+          datum="How it works"
+        />
+        <div className="mt-12">
+          <Stages items={STAGES} />
+        </div>
       </Section>
 
-      <Section label="Working with us" title="What we need from you.">
-        <Prose>
-          <p>
-            The system already exists; it is configured for your business rather than built
-            from scratch. That keeps deployment measured in weeks, and means improvements made
-            for one client reach every client on the same system.
-          </p>
-          <p>
-            What we need from you is the part only you have: how your business actually
-            qualifies a good customer, what you want to know before a first conversation, and
-            access to the CRM and calendar your team already works in.
-          </p>
-          <p>
-            You keep your data. Customer records live in your CRM, under your account, and the
-            relationship with your customers stays yours.
-          </p>
-        </Prose>
+      <Section className="bg-steel-900">
+        <SectionHead title="What we need from you." datum="Working with us" />
+        <div className="mt-10">
+          <Prose>
+            <p>
+              The system already exists; it is configured for your business rather than built
+              from scratch. That keeps deployment measured in weeks, and means improvements made
+              for one client reach every client on the same system.
+            </p>
+            <p>
+              What we need from you is the part only you have: how your business actually
+              qualifies a good customer, what you want to know before a first conversation, and
+              access to the CRM and calendar your team already works in.
+            </p>
+            <p className="border-t border-steel-500 pt-5 text-card">
+              You keep your data. Customer records live in your CRM, under your account, and the
+              relationship with your customers stays yours.
+            </p>
+          </Prose>
+        </div>
       </Section>
 
-      <Section label="Two separate things" title="Your customers are not part of our network.">
-        <Prose>
-          <p>
-            We also operate a publisher network that promotes our own acquisition offers. That
-            is a separate side of the business, and the two do not touch.
-          </p>
-          <p>
-            Publishers promote offers using tracked referral links. They have no access to your
-            CRM, your customer records or your pipeline. The customers your system acquires
-            belong to you and are managed in your CRM.
-          </p>
-        </Prose>
+      {/* The wall between the two sides of the business, stated where a client will read it. */}
+      <Section>
+        <SectionHead
+          title="Your customers are not part of our network."
+          datum="Two separate things"
+          hue="plum"
+        />
+        <div className="mt-10">
+          <Prose>
+            <p>
+              We also operate a publisher network that promotes our own acquisition offers. That
+              is a separate side of the business, and the two do not touch.
+            </p>
+            <p>
+              Publishers promote offers using tracked referral links. They have no access to your
+              CRM, your customer records or your pipeline. The customers your system acquires
+              belong to you and are managed in your CRM.
+            </p>
+          </Prose>
+        </div>
       </Section>
 
       <CallToAction
@@ -101,6 +123,7 @@ export default function ForClientsPage() {
         body="Describe your business, who you want to reach and where the process breaks down today. If an industry-specific acquisition system is not the right fit, we will say so."
         primary={{ href: '/contact', label: 'Talk to Reylix' }}
         secondary={{ href: '/products', label: 'Explore Our Systems' }}
+        datum="Next"
       />
     </>
   );

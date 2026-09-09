@@ -6,6 +6,10 @@ import { useEffect, useState } from 'react';
 import { NAV } from '@/components/marketing/content';
 import { Logo } from '@/components/ui/Logo';
 
+/**
+ * The rail across the head of the cabinet. Navigation is a row of guide tabs; the one you are
+ * standing in is the raised tab, marked by its own signal edge rather than by colour alone.
+ */
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -16,13 +20,17 @@ export function SiteHeader() {
   }, [pathname]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-ink-200 bg-white/90 backdrop-blur">
-      <div className="gutter flex h-16 items-center justify-between gap-6">
-        <Link href="/" aria-label="Reylix home" className="shrink-0">
+    <header className="sticky top-0 z-50 border-b border-steel-950 bg-steel-900/95 backdrop-blur">
+      <div className="gutter flex h-16 items-stretch justify-between gap-6">
+        <Link
+          href="/"
+          aria-label="Reylix home"
+          className="flex shrink-0 items-center text-card transition-colors hover:text-signal-orange-up"
+        >
           <Logo />
         </Link>
 
-        <nav aria-label="Main" className="hidden items-center gap-7 md:flex">
+        <nav aria-label="Main" className="hidden items-stretch md:flex">
           {NAV.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
@@ -30,8 +38,10 @@ export function SiteHeader() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
-                className={`text-[0.92rem] transition-colors hover:text-brand-700 ${
-                  active ? 'text-brand-700' : 'text-ink-600'
+                className={`flex items-center border-t-2 px-5 font-gothic text-[0.875rem] font-semibold uppercase tracking-tab transition-colors ${
+                  active
+                    ? 'border-signal-orange-up bg-steel-800 text-card'
+                    : 'border-transparent text-steel-300 hover:border-steel-500 hover:text-card'
                 }`}
               >
                 {item.label}
@@ -40,7 +50,7 @@ export function SiteHeader() {
           })}
           <Link
             href="/contact"
-            className="rounded-sm bg-brand-700 px-4 py-2 text-[0.88rem] font-semibold text-white transition-colors hover:bg-brand-800"
+            className="ml-4 flex items-center bg-signal-orange px-6 font-gothic text-[0.875rem] font-semibold uppercase tracking-tab text-card transition-colors hover:bg-[#a03712]"
           >
             Talk to Reylix
           </Link>
@@ -51,7 +61,7 @@ export function SiteHeader() {
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls="mobile-nav"
-          className="-mr-2 inline-flex h-10 w-10 items-center justify-center text-ink-700 md:hidden"
+          className="-mr-2 inline-flex h-16 w-12 items-center justify-center text-card md:hidden"
         >
           <span className="sr-only">{open ? 'Close menu' : 'Open menu'}</span>
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
@@ -65,20 +75,26 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div id="mobile-nav" className="border-t border-ink-200 bg-white md:hidden">
-          <nav aria-label="Main" className="gutter flex flex-col py-3">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="border-b border-ink-100 py-3 text-ink-700 last:border-0"
-              >
-                {item.label}
-              </Link>
-            ))}
+        <div id="mobile-nav" className="border-t border-steel-700 bg-steel-900 md:hidden">
+          <nav aria-label="Main" className="gutter flex flex-col py-2">
+            {NAV.map((item) => {
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`border-b border-steel-700 py-4 font-gothic text-base font-semibold uppercase tracking-tab last:border-0 ${
+                    active ? 'text-signal-orange-up' : 'text-steel-200'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
             <Link
               href="/contact"
-              className="mt-3 rounded-sm bg-brand-700 px-4 py-3 text-center font-semibold text-white"
+              className="mb-3 mt-4 bg-signal-orange px-5 py-4 text-center font-gothic text-base font-semibold uppercase tracking-tab text-card"
             >
               Talk to Reylix
             </Link>

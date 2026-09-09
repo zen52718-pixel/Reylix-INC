@@ -43,3 +43,17 @@ next-env.d.ts
 .idea
 .vscode/*
 !.vscode/extensions.json
+
+# Impeccable local artifacts — review captures and per-machine config are not shared state.
+# .impeccable/surfaces/ IS committed: it holds the durable direction contract.
+/.impeccable/review/
+/.impeccable/build/
+/.impeccable/mocks/
+/.impeccable/config.local.json
+/.impeccable/questions/
+
+# Impeccable is a design tool, not project state. Reinstall with:
+#   npx impeccable install --providers=claude --scope=project
+# The design OUTPUTS (PRODUCT.md, DESIGN.md, .impeccable/surfaces/) are committed.
+/.claude/skills/impeccable/
+/.claude/agents/impeccable-*.md

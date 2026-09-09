@@ -17,12 +17,12 @@ export default function PrivacyPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Legal"
         title="Privacy Policy"
+        datum="Legal"
         standfirst="This is a placeholder. It describes what the site does today, but it has not been reviewed by counsel and is not the final policy."
       />
 
-      <Section label="Status" title="Not yet a reviewed policy.">
+      <Section title="Not yet a reviewed policy." datum="Status">
         <Prose>
           <p>
             {LEGAL_NAME} is preparing a full privacy policy with legal counsel. Until it is
@@ -32,7 +32,7 @@ export default function PrivacyPage() {
         </Prose>
       </Section>
 
-      <Section label="What we collect" title="Only what you type into a form.">
+      <Section title="Only what you type into a form." datum="What we collect">
         <Prose>
           <p>
             This site has no analytics, no advertising pixels and no third-party trackers. Fonts
@@ -48,7 +48,7 @@ export default function PrivacyPage() {
         </Prose>
       </Section>
 
-      <Section label="How we use it" title="To reply to you.">
+      <Section title="To reply to you." datum="How we use it">
         <Prose>
           <p>
             We use what you submit to respond to your enquiry or assess your partner application.
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
         </Prose>
       </Section>
 
-      <Section label="Questions" title="Ask us before you send anything you are unsure about.">
+      <Section title="Ask us before you send anything you are unsure about." datum="Questions">
         <Prose>
           <p>
             If you want to know how a particular piece of information would be handled, ask

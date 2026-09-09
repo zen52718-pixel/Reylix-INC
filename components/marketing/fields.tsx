@@ -4,21 +4,40 @@ import type { ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 're
 import { useId } from 'react';
 
 /**
- * Form field primitives.
+ * Form field primitives — the intake side of the record system.
  *
  * Every field renders a real <label> bound by id, so the whole form is usable with a screen
  * reader and clicking a label focuses its control. Required fields are marked in the label
  * rather than only by a red outline after failure.
+ *
+ * The visual world changed here; the contract did not. Field names, required flags, the
+ * honeypot and the consent wording are untouched, because the API routes and the stored
+ * consent record depend on all four.
  */
 
 const fieldClass =
-  'mt-2 w-full rounded-sm border border-ink-300 bg-white px-3.5 py-2.5 text-[0.95rem] text-ink-900 placeholder:text-ink-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20';
+  'mt-2 w-full border border-card-edge bg-white px-3.5 py-2.5 text-[0.95rem] text-ink placeholder:text-ink-faint focus:border-signal-orange focus:outline-none focus:ring-2 focus:ring-signal-orange/25';
 
-function Label({ htmlFor, children, required }: { htmlFor: string; children: ReactNode; required?: boolean }) {
+function Label({
+  htmlFor,
+  children,
+  required,
+}: {
+  htmlFor: string;
+  children: ReactNode;
+  required?: boolean;
+}) {
   return (
-    <label htmlFor={htmlFor} className="block text-[0.88rem] font-semibold text-ink-800">
+    <label
+      htmlFor={htmlFor}
+      className="block font-gothic text-[0.9375rem] font-semibold uppercase tracking-tab text-ink"
+    >
       {children}
-      {required && <span className="ml-1 text-brand-700">*</span>}
+      {required && (
+        <span className="ml-1.5 text-signal-orange" aria-hidden="true">
+          *
+        </span>
+      )}
     </label>
   );
 }
@@ -105,7 +124,7 @@ export function SelectField({
       <Label htmlFor={id} required={required}>
         {label}
       </Label>
-      <select id={id} name={name} required={required} className={fieldClass}>
+      <select id={id} name={name} required={required} className={`${fieldClass} rx-select`}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -120,15 +139,15 @@ export function SelectField({
 export function ConsentField({ name, wording }: { name: string; wording: string }) {
   const id = useId();
   return (
-    <div className="flex gap-3 border-t border-ink-200 pt-5">
+    <div className="flex gap-3 border-t border-card-rule pt-5">
       <input
         id={id}
         name={name}
         type="checkbox"
         required
-        className="mt-1 h-4 w-4 shrink-0 rounded-sm border-ink-400 text-brand-700 focus:ring-brand-600"
+        className="rx-check mt-0.5 h-5 w-5 shrink-0 rounded-none"
       />
-      <label htmlFor={id} className="text-[0.86rem] leading-relaxed text-ink-600">
+      <label htmlFor={id} className="text-[0.875rem] leading-relaxed text-ink-soft">
         {wording}
       </label>
     </div>
@@ -145,21 +164,48 @@ export function Honeypot({ name }: { name: string }) {
   );
 }
 
+/** The submit control is the same pulled tab as every other primary action on the site. */
 export function SubmitButton({ pending, children }: { pending: boolean; children: ReactNode }) {
   return (
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm bg-brand-700 px-5 py-3 text-[0.95rem] font-semibold text-white transition-colors hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-ink-400"
+      className="group inline-flex items-center gap-3 bg-signal-orange px-6 py-4 font-gothic text-tab font-semibold uppercase tracking-tab text-card transition-transform duration-300 ease-pull hover:translate-x-1.5 disabled:translate-x-0 disabled:cursor-not-allowed disabled:bg-ink-faint"
+      style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 1rem 100%, 0 calc(100% - 0.6rem))' }}
     >
       {pending ? 'Sending…' : children}
+      {pending ? (
+        <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4 animate-spin">
+          <circle
+            cx="10"
+            cy="10"
+            r="7.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeDasharray="12 36"
+          />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 20 12" aria-hidden="true" className="h-3 w-5">
+          <path
+            d="M0 6h17M12.5 1.5 17.5 6l-5 4.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+          />
+        </svg>
+      )}
     </button>
   );
 }
 
 export function FormError({ message }: { message: string }) {
   return (
-    <p role="alert" className="rounded-sm bg-red-50 px-4 py-3 text-[0.9rem] text-red-800">
+    <p
+      role="alert"
+      className="border-t-2 border-signal-orange bg-card-shade px-4 py-3 text-[0.9375rem] text-ink"
+    >
       {message}
     </p>
   );
@@ -167,9 +213,11 @@ export function FormError({ message }: { message: string }) {
 
 export function FormSuccess({ title, body }: { title: string; body: string }) {
   return (
-    <div role="status" className="border-l-2 border-accent-600 bg-accent-50 px-5 py-6">
-      <h3 className="font-display text-lg font-semibold text-ink-900">{title}</h3>
-      <p className="mt-2 text-[0.96rem] leading-relaxed text-ink-700">{body}</p>
+    <div role="status" className="border-t-2 border-signal-green bg-card-shade px-6 py-7">
+      <h3 className="font-gothic text-2xl font-bold uppercase leading-none tracking-display text-ink">
+        {title}
+      </h3>
+      <p className="mt-4 text-body leading-relaxed text-ink-soft">{body}</p>
     </div>
   );
 }
