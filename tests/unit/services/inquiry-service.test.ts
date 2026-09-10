@@ -96,6 +96,48 @@ describe('InquiryService', () => {
     });
   });
 
+  /**
+   * Serverless-critical. A function can be frozen the instant its response is returned, so a
+   * fire-and-forget notification is one that never leaves the machine. While there is no
+   * durable store, that notification is the only copy of the submission.
+   */
+  it('waits for the admin notification before resolving', async () => {
+    const repos = createMemoryRepositories();
+    let settled = false;
+    const notifier: AdminNotifier = {
+      notifyNewLead: vi.fn().mockResolvedValue(undefined),
+      notifyNewInquiry: vi.fn().mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            setTimeout(() => {
+              settled = true;
+              resolve();
+            }, 20);
+          }),
+      ),
+    };
+    const service = new InquiryService(repos.inquiries, notifier);
+
+    await service.create({ name: 'A', email: 'a@b.com', consentGranted: true });
+
+    expect(settled).toBe(true);
+  });
+
+  it('still records the inquiry when the notifier throws', async () => {
+    const repos = createMemoryRepositories();
+    const notifier: AdminNotifier = {
+      notifyNewLead: vi.fn().mockResolvedValue(undefined),
+      notifyNewInquiry: vi.fn().mockRejectedValue(new Error('provider down')),
+    };
+    const service = new InquiryService(repos.inquiries, notifier);
+
+    // A delivery problem must never turn a correct submission into an error for the visitor.
+    await expect(
+      service.create({ name: 'A', email: 'a@b.com', consentGranted: true }),
+    ).resolves.toMatchObject({ email: 'a@b.com' });
+    expect(await repos.inquiries.list()).toHaveLength(1);
+  });
+
   it('an inquiry is not a lead: it never reaches the leads store', async () => {
     const { service, repos } = build();
     await service.create({ name: 'A', email: 'a@b.com', consentGranted: true });

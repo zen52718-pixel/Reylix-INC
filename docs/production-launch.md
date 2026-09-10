@@ -5,30 +5,43 @@ Names only. Never paste a value into this file, a ticket, or a chat.
 
 ---
 
-## 1. The one blocker: submissions are not stored
+## 1. Submissions: email is currently the system of record
 
-`STORAGE_BACKEND` currently resolves to `memory` in production — confirmed live at
-`/api/healthz`. The memory adapter is a process-local object.
+`STORAGE_BACKEND` resolves to `memory` in production — confirmed live at `/api/healthz`. The
+memory adapter is a process-local object, so a submission exists only inside the serverless
+invocation that received it.
 
-**What that means today:** a visitor submits the contact or partner form, the API returns
-`201`, the browser shows "Message received", and the record exists only in that serverless
-invocation's memory. When the function is recycled — which on Vercel can be seconds later —
-the enquiry is gone. The only trace is a `console.info` line in the platform log.
+**The interim fix is wired and shipping: an email notifier.** When it is configured, every
+contact enquiry and partner application is emailed to `ADMIN_NOTIFY_EMAIL` before the request
+returns, consent record included. Until Supabase exists, that email is the only durable copy.
 
-For a company whose entire site exists to capture enquiries, that is a launch blocker, not a
-configuration nicety. Two ways to close it:
+### Turning it on
 
-1. **Provision Supabase** and set `STORAGE_BACKEND=supabase` with the three keys below.
-   `docs/supabase-setup.md` is the procedure. Nothing in `supabase/migrations/` has ever been
-   executed, so the first run is also the first verification.
-2. **Or wire an email notifier** as an interim, so an enquiry at least reaches a human inbox.
-   `LoggingAdminNotifier` in `src/services/notifications.ts` is the drop-in point; the
-   `AdminNotifier` interface already exists and the services already call it.
+Set all three in the hosting dashboard. A partial configuration sends nothing — deliberately,
+because a half-working email path looks like it is working:
 
-Until one of those is done, the honest description is: the forms work, and nothing keeps what
-they collect.
+| Variable | Notes |
+|---|---|
+| `EMAIL_PROVIDER_API_KEY` | A [Resend](https://resend.com) API key |
+| `ADMIN_NOTIFY_EMAIL` | Where submissions are delivered |
+| `EMAIL_FROM` | A sender Resend has **verified for your domain**. Before a domain is verified, `onboarding@resend.dev` works for testing. |
 
----
+With none of them set, the site falls back to the logging notifier and behaves exactly as it
+did before — no errors, but no delivery either. `/api/healthz` does not report notifier state.
+
+### What it guarantees, and what it does not
+
+- **The send is awaited**, never fire-and-forget. A serverless function can be frozen the
+  instant its response is returned, so an un-awaited send is mail that never leaves. A
+  regression test fails if anyone reverts that.
+- **A failed send never breaks the visitor's submission.** They filled the form correctly;
+  they get the success state.
+- **A failed send is recoverable.** After one retry, the notifier writes the complete record
+  to the platform log as `admin_notify_failed` with `"recoverable": true`. Grep for that
+  string to find anything that did not get delivered.
+- **It is still not a database.** There is no list, no search, no history, no deduplication —
+  just an inbox. Supabase remains the real answer; `docs/supabase-setup.md` is the procedure.
+  No migration in `supabase/migrations/` has ever been executed.
 
 ## 2. Environment variables
 
@@ -39,6 +52,10 @@ Set these in the hosting dashboard, per environment.
 | Variable | Why | Notes |
 |---|---|---|
 | `NEXT_PUBLIC_SITE_URL` | `metadataBase`, every canonical URL, Open Graph, sitemap, robots | **Must be set at BUILD time**, not just runtime — `NEXT_PUBLIC_*` is inlined during the build. Without it the site falls back to the Vercel host, which is correct but not the brand domain. |
+
+### Required for form delivery (see section 1)
+
+`EMAIL_PROVIDER_API_KEY`, `ADMIN_NOTIFY_EMAIL`, `EMAIL_FROM` — all three, or none take effect.
 
 ### Required only when `STORAGE_BACKEND=supabase`
 
@@ -51,9 +68,8 @@ Set these in the hosting dashboard, per environment.
 
 ### Optional
 
-`ADMIN_EMAILS`, `ADMIN_PASSWORD`, `EMAIL_PROVIDER_API_KEY`, `ADMIN_NOTIFY_EMAIL`,
-`REDIRECT_COOKIE_DOMAIN`, `REDIRECT_BASE_URL`, `ATTRIBUTION_WINDOW_DAYS`,
-`CLICK_DEDUP_MINUTES`, `ALLOWED_REDIRECT_HOSTS`.
+`ADMIN_EMAILS`, `ADMIN_PASSWORD`, `REDIRECT_COOKIE_DOMAIN`, `REDIRECT_BASE_URL`,
+`ATTRIBUTION_WINDOW_DAYS`, `CLICK_DEDUP_MINUTES`, `ALLOWED_REDIRECT_HOSTS`.
 
 > **Empty values are safe now.** A present-but-empty variable is treated as unset. It was not
 > always: one empty variable used to make `loadEnv()` throw, which returned HTTP 500 from both
@@ -83,8 +99,9 @@ something silently would make that page untrue.
 
 Two things to do at the same time, or not at all:
 
-1. Update `app/(marketing)/privacy/page.tsx` — it currently states there are no analytics and
-   no third-party trackers. That sentence becomes false the moment GA4 loads.
+1. Re-read `app/(marketing)/privacy/page.tsx`. It now says the site *may* use cookies and
+   third-party analytics, which stays true either way — but "may" is doing a lot of work, and
+   once GA4 is actually running the honest version names it.
 2. Decide whether a consent banner is required for the audience. GA4 in the US is generally
    handled by disclosure; the EU is a different answer.
 
@@ -101,7 +118,9 @@ No measurement ID is invented here. Supply the real one when you have it.
   real 1200×630 asset. Shared links will render as text-only cards until then.
 - **No `apple-touch-icon`.** `favicon.ico` and `icon.svg` ship; iOS home-screen bookmarks will
   fall back to a screenshot.
-- **The homepage has no proof section.** `CLIENT_SYSTEM` in `app/(marketing)/page.tsx` is a
-  reserved slot awaiting the URL and screenshots of a real client system.
+- **The site shows no proof.** No metrics, testimonials, client logos or case studies exist,
+  and none are invented. The design handoff has no slot for them either, so adding one is a
+  design decision as well as a content one — worth making once a real client system can be
+  pointed at.
 - **Business identity is undecided and deliberately unstated:** production domain, publishable
   contact email, business address, and state of incorporation. Nothing invents them.

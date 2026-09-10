@@ -65,7 +65,19 @@ export class InquiryService {
       handled: false,
       createdAt: new Date().toISOString(),
     });
-    void this.notifier.notifyNewInquiry(inquiry).catch(() => undefined);
+    /**
+     * Awaited, not fire-and-forget. A serverless function can be frozen the instant its
+     * response is returned, so an un-awaited send is a notification that never leaves the
+     * machine — and while there is no durable store, that notification IS the record.
+     *
+     * The notifier never throws; it logs the full submission if delivery fails. The catch
+     * here is belt-and-braces so a future notifier cannot turn a good submission into a 500.
+     */
+    try {
+      await this.notifier.notifyNewInquiry(inquiry);
+    } catch {
+      // Already logged by the notifier. The visitor did nothing wrong.
+    }
     return inquiry;
   }
 

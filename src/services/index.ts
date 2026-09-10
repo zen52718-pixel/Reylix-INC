@@ -13,6 +13,7 @@ import { ClientService } from '@/src/services/ClientService';
 import { CommissionService } from '@/src/services/CommissionService';
 import { InquiryService } from '@/src/services/InquiryService';
 import { LeadService } from '@/src/services/LeadService';
+import { EmailAdminNotifier, emailNotifierConfig } from '@/src/services/email-notifier';
 import { LoggingAdminNotifier } from '@/src/services/notifications';
 import { OfferService } from '@/src/services/OfferService';
 import { PayoutService } from '@/src/services/PayoutService';
@@ -41,7 +42,13 @@ export function getServices(): Services {
   if (!services) {
     const repos = getRepositories();
     const env = loadEnv();
-    const notifier = new LoggingAdminNotifier();
+    /**
+     * With no durable store configured, the admin notification is the only copy of a
+     * submission that outlives the request — so a real notifier is used the moment one is
+     * fully configured, and the logging one remains the fallback.
+     */
+    const emailConfig = emailNotifierConfig(env);
+    const notifier = emailConfig ? new EmailAdminNotifier(emailConfig) : new LoggingAdminNotifier();
     const audit = new AuditService(repos.audit);
     const attribution = new AttributionService(
       {

@@ -95,8 +95,13 @@ export class LeadService {
       });
     }
 
-    // Notify admin; never let a notification failure fail the capture.
-    void this.deps.notifier.notifyNewLead(lead).catch(() => undefined);
+    // Awaited: a fire-and-forget send does not survive a serverless freeze. Never let a
+    // notification failure fail the capture.
+    try {
+      await this.deps.notifier.notifyNewLead(lead);
+    } catch {
+      // Already logged by the notifier.
+    }
 
     return {
       lead,

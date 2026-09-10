@@ -32,9 +32,13 @@ const EnvSchema = z
     ADMIN_EMAILS: z.string().default(''), // comma-separated admin emails
     ADMIN_PASSWORD: z.string().optional(),
 
-    // email
+    // email — all three are required together before any notification is sent
     EMAIL_PROVIDER_API_KEY: z.string().min(1).optional(),
     ADMIN_NOTIFY_EMAIL: z.string().email().optional(),
+    // Must be a sender the email provider has verified for your domain.
+    EMAIL_FROM: z.string().email().optional(),
+    // Override the provider endpoint. Only needed to point at a test double.
+    EMAIL_API_ENDPOINT: z.string().url().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.STORAGE_BACKEND === 'supabase') {
