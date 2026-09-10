@@ -1,58 +1,51 @@
 import type { Metadata } from 'next';
+import { LegalPage } from '@/components/marketing/LegalPage';
 import { LEGAL_NAME } from '@/components/marketing/content';
-import { PageHeader, Prose, Section } from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/terms' },
   title: 'Terms of Service',
-  description: 'Terms governing use of the Reylix INC website.',
+  description: 'The terms under which the Reylix INC website is provided.',
+  // Kept noindex until the terms have been through counsel. See docs/production-launch.md.
   robots: { index: false, follow: true },
 };
 
-/**
- * PLACEHOLDER. See the note on the privacy page: stating that terms are pending is more
- * useful, and more honest, than generated boilerplate that reads as if it were binding.
- */
+const SECTIONS: [string, string][] = [
+  [
+    'Use of Site',
+    'By accessing this website, you agree to use it only for lawful purposes and in accordance with these terms.',
+  ],
+  [
+    'Description of Services',
+    `${LEGAL_NAME} provides customer acquisition systems and related services to businesses. Information on this website is provided for general informational purposes and does not constitute a guarantee of results.`,
+  ],
+  [
+    'Intellectual Property',
+    `All content on this website, including text, graphics, and design, is the property of ${LEGAL_NAME} unless otherwise noted, and may not be reproduced without permission.`,
+  ],
+  [
+    'Forms & Submissions',
+    'Information submitted through forms on this website is used solely to respond to your inquiry or application and is not shared with unrelated third parties.',
+  ],
+  [
+    'Disclaimers',
+    'This website and its content are provided "as is" without warranties of any kind, express or implied.',
+  ],
+  [
+    'Limitation of Liability',
+    `${LEGAL_NAME} shall not be liable for any indirect, incidental, or consequential damages arising from use of this website.`,
+  ],
+  [
+    'Governing Law',
+    'These terms are governed by the laws of the United States, without regard to conflict-of-law principles.',
+  ],
+  [
+    'Changes to Terms',
+    'We may update these terms from time to time. Continued use of the website constitutes acceptance of the updated terms.',
+  ],
+  ['Contact', 'Questions about these terms can be submitted through our Contact page.'],
+];
+
 export default function TermsPage() {
-  return (
-    <>
-      <PageHeader
-        title="Terms of Service"
-        datum="Legal"
-        standfirst="This is a placeholder. Full terms are being prepared with legal counsel and have not been published yet."
-      />
-
-      <Section title="Terms are pending." datum="Status">
-        <Prose>
-          <p>
-            {LEGAL_NAME} has not yet published terms of service for this website. Rather than post
-            boilerplate that reads as though it had been reviewed, this page says so directly.
-          </p>
-        </Prose>
-      </Section>
-
-      <Section title="What this site is." datum="In the meantime">
-        <Prose>
-          <p>
-            This website is informational. Nothing on it is an offer, a contract, or a guarantee
-            of a result. Descriptions of products under development describe what is intended, not
-            what is currently available — where something is not yet shipping, the page says so.
-          </p>
-          <p>
-            Any actual engagement between {LEGAL_NAME} and a client or a partner is governed by a
-            separate written agreement, not by this website.
-          </p>
-        </Prose>
-      </Section>
-
-      <Section title="Ask before relying on anything here." datum="Questions">
-        <Prose>
-          <p>
-            If you need something on this site confirmed in writing before you act on it, ask
-            through the contact form and we will confirm or correct it.
-          </p>
-        </Prose>
-      </Section>
-    </>
-  );
+  return <LegalPage title="Terms of Service" sections={SECTIONS} />;
 }

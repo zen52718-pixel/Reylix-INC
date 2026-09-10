@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CONSENT_PARTNER } from '@/components/marketing/content';
+import { CONSENT_PARTNER, INDUSTRY_OPTIONS } from '@/components/marketing/content';
 import {
   ConsentField,
   FormError,
@@ -15,6 +15,21 @@ import {
 
 type Status = 'idle' | 'sending' | 'sent';
 
+/**
+ * The design's partner application, wired to the real endpoint.
+ *
+ * The handoff's fields map almost exactly onto the existing schema: Traffic Source is
+ * `audienceType`, Monthly Volume is `audienceSize`, Message is `promoDescription`. Only
+ * Primary Industry has no column, so it is folded into the description with a label.
+ */
+const TRAFFIC_SOURCES = [
+  { value: 'paid', label: 'Paid Search' },
+  { value: 'social', label: 'Paid Social' },
+  { value: 'seo', label: 'SEO / Organic' },
+  { value: 'email', label: 'Email' },
+  { value: 'other', label: 'Affiliate Network' },
+];
+
 export function PartnerForm() {
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -25,17 +40,25 @@ export function PartnerForm() {
     setStatus('sending');
 
     const form = new FormData(event.currentTarget);
+    const str = (k: string) => String(form.get(k) ?? '').trim();
+
+    const industry = str('industry');
+    const promoDescription =
+      [industry ? `Primary industry: ${industry}` : null, str('message') || null]
+        .filter(Boolean)
+        .join('\n\n') || str('message');
+
     const payload = {
-      name: String(form.get('name') ?? ''),
-      email: String(form.get('email') ?? ''),
-      phone: String(form.get('phone') ?? ''),
-      company: String(form.get('company') ?? ''),
-      website: String(form.get('website') ?? ''),
-      audienceType: String(form.get('audienceType') ?? 'other'),
-      audienceSize: String(form.get('audienceSize') ?? ''),
-      promoDescription: String(form.get('promoDescription') ?? ''),
+      name: str('name'),
+      email: str('email'),
+      phone: str('phone'),
+      company: str('company'),
+      website: str('website'),
+      audienceType: str('audienceType') || 'other',
+      audienceSize: str('audienceSize'),
+      promoDescription,
       consent: form.get('consent') === 'on',
-      hp: String(form.get('hp') ?? ''),
+      hp: str('hp'),
     };
 
     try {
@@ -67,58 +90,49 @@ export function PartnerForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="relative space-y-5">
+    <form onSubmit={onSubmit} className="relative grid gap-5 sm:grid-cols-2">
       <Honeypot name="hp" />
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <TextField label="Name" name="name" required autoComplete="name" />
-        <TextField label="Email" name="email" type="email" required autoComplete="email" />
-      </div>
+      <TextField label="Full Name" name="name" required autoComplete="name" />
+      <TextField label="Company" name="company" required autoComplete="organization" />
+      <TextField label="Email" name="email" type="email" required autoComplete="email" />
+      <TextField label="Phone" name="phone" type="tel" autoComplete="tel" />
+      <TextField label="Website" name="website" placeholder="https://" autoComplete="url" />
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <TextField label="Phone" name="phone" type="tel" autoComplete="tel" placeholder="(555) 123-4567" />
-        <TextField label="Company" name="company" autoComplete="organization" />
-      </div>
-
-      <TextField
-        label="Website or main channel"
-        name="website"
-        placeholder="https://"
-        autoComplete="url"
+      <SelectField label="Traffic Source" name="audienceType" options={TRAFFIC_SOURCES} />
+      <SelectField
+        label="Primary Industry"
+        name="industry"
+        options={INDUSTRY_OPTIONS.map((i) => ({ value: i, label: i }))}
       />
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <SelectField
-          label="Primary traffic type"
-          name="audienceType"
-          options={[
-            { value: 'paid', label: 'Paid traffic' },
-            { value: 'seo', label: 'SEO / organic' },
-            { value: 'social', label: 'Social' },
-            { value: 'email', label: 'Email list' },
-            { value: 'other', label: 'Other' },
-          ]}
-        />
-        <TextField
-          label="Audience size"
-          name="audienceSize"
-          placeholder="Monthly visitors, list size, followers…"
-        />
-      </div>
+      <TextField
+        label="Monthly Traffic / Lead Volume"
+        name="audienceSize"
+        placeholder="Monthly visitors, list size, followers…"
+      />
 
       <TextAreaField
-        label="How do you plan to promote?"
-        name="promoDescription"
+        label="Message"
+        name="message"
         required
-        rows={6}
+        rows={5}
         placeholder="Which verticals, which channels, and what your traffic usually converts on."
+        className="sm:col-span-2"
       />
 
-      <ConsentField name="consent" wording={CONSENT_PARTNER} />
+      <div className="sm:col-span-2">
+        <ConsentField name="consent" wording={CONSENT_PARTNER} />
+      </div>
 
-      {error && <FormError message={error} />}
+      {error && (
+        <div className="sm:col-span-2">
+          <FormError message={error} />
+        </div>
+      )}
 
-      <SubmitButton pending={status === 'sending'}>Apply to Become a Publisher</SubmitButton>
+      <div className="sm:col-span-2">
+        <SubmitButton pending={status === 'sending'}>Apply to Become a Partner</SubmitButton>
+      </div>
     </form>
   );
 }

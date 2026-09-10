@@ -33,10 +33,17 @@ const ContactSchema = z.object({
   consent: z.literal(true, {
     errorMap: () => ({ message: 'Consent is required before we can contact you' }),
   }),
+  /**
+   * The visitor's real website. This used to be the honeypot's name — until the design
+   * introduced a visible "Website" input, at which point every genuine submission carrying
+   * one would have been silently discarded as a bot and still shown a success message.
+   */
+  website: z.string().trim().max(300).optional(),
   // Honeypot: a real person never fills this, so a value means a bot. Deliberately NOT
   // constrained to max(0) — rejecting it here would return a validation error naming the
-  // field, which tells the bot exactly which input to skip next time.
-  website: z.string().optional(),
+  // field, which tells the bot exactly which input to skip next time. Named `hp` to match
+  // the partner route, and to keep it clear of any field a person can see.
+  hp: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -56,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     const input = parsed.data;
     // Silently accept the honeypot so a bot gets no signal that it was detected.
-    if (input.website) return jsonOk({ received: true });
+    if (input.hp) return jsonOk({ received: true });
 
     const inquiry = await getServices().inquiries.create({
       name: input.name,
@@ -64,7 +71,10 @@ export async function POST(request: NextRequest) {
       phone: input.phone,
       company: input.company,
       interestType: INTEREST_ALIASES[input.interestType] ?? 'other',
-      message: input.message,
+      message:
+        [input.website ? `Website: ${input.website}` : null, input.message]
+          .filter(Boolean)
+          .join('\n\n') || undefined,
       // Consent is stored as structured fields rather than prose in the message, so it is
       // queryable and auditable.
       consentGranted: true,

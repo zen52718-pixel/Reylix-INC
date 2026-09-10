@@ -4,10 +4,7 @@
 
 @layer base {
   :root {
-    --ground: #2e3836;
-    --on-ground: #f4f2ec;
-    --rule: #d3cec0;
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   html {
@@ -16,69 +13,53 @@
   }
 
   body {
-    background: var(--ground);
-    color: var(--on-ground);
+    background: #fff;
+    color: theme('colors.body');
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
   }
 
+  /* Per the handoff: headings bold, tight tracking, balanced wrap; body text pretty-wrapped. */
   h1,
   h2,
-  h3 {
+  h3,
+  h4 {
+    color: theme('colors.heading');
+    font-weight: 700;
+    /* --leading-tight from the handoff. Without it headings inherit the body's 1.5 and the
+       display sizes fall apart. */
+    line-height: 1.15;
+    letter-spacing: -0.02em;
     text-wrap: balance;
+    margin: 0;
   }
 
-  /* Figures in a record system are read in columns. Tabular by default everywhere. */
-  :where(time, data, .datum, th, td) {
-    font-variant-numeric: tabular-nums;
+  p {
+    margin: 0;
+    text-wrap: pretty;
   }
 
-  /* --- Browser surfaces -------------------------------------------------------------
-     The parts nobody draws still carry the design. Left at their defaults they announce
-     that a page was assembled rather than built, so they are themed from the palette. */
-
-  ::selection {
-    background: #b83f16;
-    color: #f4f2ec;
+  /* The accent is the only link colour in the system. */
+  a {
+    color: theme('colors.brand.DEFAULT');
+    text-decoration: none;
   }
 
-  :where(input, textarea) {
-    caret-color: #b83f16;
+  a:hover {
+    color: theme('colors.brand.hover');
   }
 
   :focus-visible {
-    outline: 2px solid #b83f16;
+    outline: 2px solid theme('colors.brand.DEFAULT');
     outline-offset: 2px;
-    border-radius: 0;
   }
 
-  /* Links inside prose sit on their own baseline rather than colliding with descenders. */
-  :where(a) {
-    text-underline-offset: 0.22em;
-    text-decoration-thickness: from-font;
+  ::selection {
+    background: theme('colors.brand.DEFAULT');
+    color: #fff;
   }
 
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: #535d58 #232b2a;
-  }
-
-  ::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: #232b2a;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #535d58;
-    border: 3px solid #232b2a;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #6b756f;
+  :where(input, textarea) {
+    caret-color: theme('colors.brand.DEFAULT');
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -89,50 +70,87 @@
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
   }
 }
 
 @layer components {
-  /* Page gutter. One definition, so every rail and every card edge lines up. */
-  .gutter {
-    @apply mx-auto w-full max-w-[78rem] px-5 sm:px-8 lg:px-10;
+  /* 85rem container, 24px gutter rising to 32px at 768px. */
+  .container-rx {
+    @apply mx-auto w-full max-w-container px-6 md:px-8;
   }
 
-  /* Tab lettering: the stamped caps on a plastic signal tab. Never below 12px. */
-  .tabtype {
-    @apply font-gothic text-tab font-semibold uppercase;
+  /* 88px section rhythm, 56px below 640px. */
+  .section {
+    @apply py-14 sm:py-[88px];
   }
 
-  /* The reference datum every element carries in its fixed caption slot. */
-  .datum {
-    @apply font-gothic text-datum font-medium uppercase;
+  .section-dark {
+    @apply bg-surface-darker;
+  }
+  .section-dark h1,
+  .section-dark h2,
+  .section-dark h3,
+  .section-dark h4 {
+    color: theme('colors.neutral.50');
+  }
+  .section-dark p {
+    color: theme('colors.neutral.400');
   }
 
-  /* The two controls a browser draws for you. Left alone they are the only undesigned
-     elements on a site arguing that it builds designed systems — and the default checkbox
-     square reads as already-ticked against buff card stock. */
+  /*
+    The hairline grid: a 1px gap over a border-coloured background, so the gaps themselves
+    read as dividers. This is the handoff's core layout device.
+  */
+  .rx-grid {
+    @apply grid gap-px border border-hairline bg-hairline;
+  }
+  .rx-grid > * {
+    @apply bg-white;
+  }
+  .section-dark .rx-grid {
+    background: theme('colors.neutral.800');
+    border-color: theme('colors.neutral.800');
+  }
+  .section-dark .rx-grid > * {
+    @apply bg-surface-darker;
+  }
+
+  .cell {
+    @apply px-8 py-9;
+  }
+
+  .hairline-box {
+    @apply border border-hairline;
+  }
+
+  .tag {
+    @apply text-[11px] font-bold uppercase tracking-[0.06em] text-muted;
+  }
+
+  /* The two controls a browser draws for you. Left at their defaults they are the only
+     undesigned elements on the page, and the native checkbox reads as pre-ticked. */
   .rx-select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 12'%3E%3Cpath d='M2 2.5l8 7.5 8-7.5' fill='none' stroke='%234a534e' stroke-width='2.25'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 12'%3E%3Cpath d='M2 2.5l8 7.5 8-7.5' fill='none' stroke='%23707070' stroke-width='2.25'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 0.85rem center;
-    background-size: 0.8rem;
-    padding-right: 2.5rem;
+    background-position: right 1rem center;
+    background-size: 0.75rem;
+    padding-right: 2.75rem;
   }
 
   .rx-check {
     appearance: none;
-    background-color: #ffffff;
-    border: 1px solid theme('colors.card.edge');
+    border-radius: 0.25rem;
+    background-color: #fff;
+    border: 1px solid theme('colors.neutral.300');
   }
 
   .rx-check:checked {
-    background-color: theme('colors.signal.orange');
-    border-color: theme('colors.signal.orange');
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3.2L12.5 4.8' fill='none' stroke='%23f4f2ec' stroke-width='2.4' stroke-linecap='square'/%3E%3C/svg%3E");
+    background-color: theme('colors.brand.DEFAULT');
+    border-color: theme('colors.brand.DEFAULT');
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3.2L12.5 4.8' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: center;
     background-size: 0.8rem;
@@ -140,22 +158,28 @@
 }
 
 @layer utilities {
-  /* One authored moment: cards rise into place on first paint, staggered along the rail,
-     from an already-visible default so nothing is hidden if the animation never runs. */
-  @keyframes seat {
-    from {
-      transform: translateY(14px);
-      opacity: 0.55;
-      filter: blur(3px);
-    }
-    to {
-      transform: none;
-      opacity: 1;
-      filter: none;
-    }
+  /*
+    Scroll reveal. Starts visible-but-offset rather than at opacity 0, so content is never
+    hidden if IntersectionObserver never fires — and it is disabled outright under
+    prefers-reduced-motion by the base layer above.
+  */
+  .reveal {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .seat {
-    animation: seat 0.72s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  .reveal.in-view {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal {
+      opacity: 1;
+      transform: none;
+    }
   }
 }

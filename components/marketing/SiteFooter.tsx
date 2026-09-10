@@ -1,73 +1,52 @@
 import Link from 'next/link';
-import { LEGAL_NAME, VERTICALS } from '@/components/marketing/content';
-import { LogoMark } from '@/components/ui/Logo';
+import { LEGAL_NAME } from '@/components/marketing/content';
 
 const YEAR = new Date().getFullYear();
 
-const COLUMNS: { heading: string; links: { href: string; label: string }[] }[] = [
-  {
-    heading: 'Company',
-    links: [
-      { href: '/about', label: 'About' },
-      { href: '/for-clients', label: 'For Clients' },
-      { href: '/for-publishers', label: 'For Publishers' },
-      { href: '/contact', label: 'Contact' },
-    ],
-  },
-  {
-    heading: 'Legal',
-    links: [
-      { href: '/privacy', label: 'Privacy Policy' },
-      { href: '/terms', label: 'Terms of Service' },
-      { href: '/become-a-partner', label: 'Become a Partner' },
-    ],
-  },
+const NAVIGATION = [
+  { href: '/products', label: 'Products' },
+  { href: '/for-clients', label: 'For Clients' },
+  { href: '/for-publishers', label: 'For Publishers' },
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
+  { href: '/become-a-partner', label: 'Become a Partner' },
+];
+
+const LEGAL = [
+  { href: '/privacy', label: 'Privacy Policy' },
+  { href: '/terms', label: 'Terms of Service' },
 ];
 
 /**
- * The drawer at the bottom of the cabinet: guide headings, then the index beneath each.
- * Headings are set as guide-card lettering rather than as small tracked labels.
+ * Dark footer: brand block plus two link columns, 1.6fr/1fr/1fr collapsing to one column
+ * below 768px, with a hairline-separated bottom bar.
+ *
+ * Link padding is deliberate, not decoration: without it these sit at 15px tall, under the
+ * 24px minimum tap target WCAG 2.5.8 asks for.
  */
 export function SiteFooter() {
   return (
-    <footer className="border-t-2 border-signal-orange bg-steel-950">
-      <div className="gutter grid gap-x-10 gap-y-12 py-16 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <LogoMark className="h-6 w-6 text-signal-orange-up" />
-          <p className="mt-5 max-w-[30ch] text-fine leading-relaxed text-steel-300">
-            Customer acquisition systems for businesses that need customers, not clicks.
-          </p>
-        </div>
+    <footer className="bg-surface-darker pb-8 pt-[72px] text-neutral-400">
+      <div className="container-rx">
+        <div className="grid gap-12 md:grid-cols-[1.6fr_1fr_1fr]">
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-xl font-bold text-white">
+              <span aria-hidden="true" className="h-[9px] w-[9px] rounded-[2px] bg-brand" />
+              REYLIX
+            </div>
+            <p className="max-w-[320px] text-sm">Customer Acquisition Systems.</p>
+          </div>
 
-        <nav aria-label="Products">
-          <h2 className="border-b border-steel-700 pb-2 font-gothic text-base font-bold uppercase tracking-tab text-card">
-            Products
-          </h2>
-          <ul className="mt-3 space-y-1.5">
-            {VERTICALS.map((v) => (
-              <li key={v.slug}>
-                <Link
-                  href={`/products#${v.slug}`}
-                  className="inline-block py-1 text-fine text-steel-200 transition-colors hover:text-signal-orange-up"
-                >
-                  {v.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        {COLUMNS.map((col) => (
-          <nav key={col.heading} aria-label={col.heading}>
-            <h2 className="border-b border-steel-700 pb-2 font-gothic text-base font-bold uppercase tracking-tab text-card">
-              {col.heading}
+          <nav aria-label="Navigation">
+            <h2 className="mb-4 text-[13px] font-bold uppercase tracking-[0.06em] text-neutral-50">
+              Navigation
             </h2>
-            <ul className="mt-3 space-y-1.5">
-              {col.links.map((l) => (
+            <ul className="flex flex-col gap-1.5">
+              {NAVIGATION.map((l) => (
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className="inline-block py-1 text-fine text-steel-200 transition-colors hover:text-signal-orange-up"
+                    className="inline-block py-1 text-sm text-neutral-400 transition-colors hover:text-white"
                   >
                     {l.label}
                   </Link>
@@ -75,16 +54,32 @@ export function SiteFooter() {
               ))}
             </ul>
           </nav>
-        ))}
-      </div>
 
-      <div className="border-t border-steel-800">
-        <div className="gutter flex flex-col gap-2 py-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="datum text-steel-300">
-            &copy; {YEAR} {LEGAL_NAME}
-          </p>
+          <nav aria-label="Legal">
+            <h2 className="mb-4 text-[13px] font-bold uppercase tracking-[0.06em] text-neutral-50">
+              Legal
+            </h2>
+            <ul className="flex flex-col gap-1.5">
+              {LEGAL.map((l) => (
+                <li key={l.href}>
+                  <Link
+                    href={l.href}
+                    className="inline-block py-1 text-sm text-neutral-400 transition-colors hover:text-white"
+                  >
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+
+        <div className="mt-14 flex flex-wrap justify-between gap-3 border-t border-neutral-800 pt-6 text-[13px]">
+          <span>
+            &copy; {YEAR} {LEGAL_NAME.toUpperCase()}. All rights reserved.
+          </span>
           {/* State of incorporation intentionally unstated until confirmed. */}
-          <p className="datum text-steel-300">A United States C Corporation</p>
+          <span>United States</span>
         </div>
       </div>
     </footer>

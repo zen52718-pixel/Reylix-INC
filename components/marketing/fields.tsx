@@ -4,19 +4,22 @@ import type { ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 're
 import { useId } from 'react';
 
 /**
- * Form field primitives — the intake side of the record system.
+ * Form field primitives, restyled to the design handoff.
  *
- * Every field renders a real <label> bound by id, so the whole form is usable with a screen
- * reader and clicking a label focuses its control. Required fields are marked in the label
- * rather than only by a red outline after failure.
+ * Two things the handoff does NOT have, kept anyway because removing them would break the
+ * site or the law:
  *
- * The visual world changed here; the contract did not. Field names, required flags, the
- * honeypot and the consent wording are untouched, because the API routes and the stored
- * consent record depend on all four.
+ * 1. **The consent checkbox.** The handoff's forms are `preventDefault(); setSent(true)`
+ *    prototypes with no consent step. The real API requires `consent: true` and stores the
+ *    wording verbatim for TCPA. It stays.
+ * 2. **A honeypot.** Bot protection the prototype has no need for.
+ *
+ * Every field renders a real <label> bound by id, so the form works with a screen reader and
+ * clicking a label focuses its control.
  */
 
 const fieldClass =
-  'mt-2 w-full border border-card-edge bg-white px-3.5 py-2.5 text-[0.95rem] text-ink placeholder:text-ink-faint focus:border-signal-orange focus:outline-none focus:ring-2 focus:ring-signal-orange/25';
+  'block w-full rounded-sm border border-hairline bg-surface-card px-4 py-3 text-sm text-heading placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25';
 
 function Label({
   htmlFor,
@@ -28,13 +31,10 @@ function Label({
   required?: boolean;
 }) {
   return (
-    <label
-      htmlFor={htmlFor}
-      className="block font-gothic text-[0.9375rem] font-semibold uppercase tracking-tab text-ink"
-    >
+    <label htmlFor={htmlFor} className="mb-1.5 block text-sm text-body">
       {children}
       {required && (
-        <span className="ml-1.5 text-signal-orange" aria-hidden="true">
+        <span className="ml-1 text-brand" aria-hidden="true">
           *
         </span>
       )}
@@ -49,6 +49,7 @@ export function TextField({
   required,
   placeholder,
   autoComplete,
+  className = '',
 }: {
   label: string;
   name: string;
@@ -56,10 +57,11 @@ export function TextField({
   required?: boolean;
   placeholder?: string;
   autoComplete?: string;
+  className?: string;
 }) {
   const id = useId();
   return (
-    <div>
+    <div className={className}>
       <Label htmlFor={id} required={required}>
         {label}
       </Label>
@@ -82,16 +84,18 @@ export function TextAreaField({
   required,
   rows = 5,
   placeholder,
+  className = '',
 }: {
   label: string;
   name: string;
   required?: boolean;
   rows?: number;
   placeholder?: string;
-} & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'name' | 'rows'>) {
+  className?: string;
+} & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'name' | 'rows' | 'className'>) {
   const id = useId();
   return (
-    <div>
+    <div className={className}>
       <Label htmlFor={id} required={required}>
         {label}
       </Label>
@@ -112,19 +116,24 @@ export function SelectField({
   name,
   options,
   required,
+  placeholder = 'Select…',
+  className = '',
 }: {
   label: string;
   name: string;
   options: { value: string; label: string }[];
   required?: boolean;
-} & Omit<SelectHTMLAttributes<HTMLSelectElement>, 'name'>) {
+  placeholder?: string;
+  className?: string;
+} & Omit<SelectHTMLAttributes<HTMLSelectElement>, 'name' | 'className'>) {
   const id = useId();
   return (
-    <div>
+    <div className={className}>
       <Label htmlFor={id} required={required}>
         {label}
       </Label>
       <select id={id} name={name} required={required} className={`${fieldClass} rx-select`}>
+        <option value="">{placeholder}</option>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -139,15 +148,15 @@ export function SelectField({
 export function ConsentField({ name, wording }: { name: string; wording: string }) {
   const id = useId();
   return (
-    <div className="flex gap-3 border-t border-card-rule pt-5">
+    <div className="flex gap-3 border-t border-hairline pt-5">
       <input
         id={id}
         name={name}
         type="checkbox"
         required
-        className="rx-check mt-px h-6 w-6 shrink-0 rounded-none"
+        className="rx-check mt-px h-6 w-6 shrink-0"
       />
-      <label htmlFor={id} className="text-[0.875rem] leading-relaxed text-ink-soft">
+      <label htmlFor={id} className="text-[13px] leading-relaxed text-body">
         {wording}
       </label>
     </div>
@@ -164,36 +173,17 @@ export function Honeypot({ name }: { name: string }) {
   );
 }
 
-/** The submit control is the same pulled tab as every other primary action on the site. */
 export function SubmitButton({ pending, children }: { pending: boolean; children: ReactNode }) {
   return (
     <button
       type="submit"
       disabled={pending}
-      className="group inline-flex items-center gap-3 bg-signal-orange px-6 py-4 font-gothic text-tab font-semibold uppercase tracking-tab text-card transition-transform duration-300 ease-pull hover:translate-x-1.5 disabled:translate-x-0 disabled:cursor-not-allowed disabled:bg-ink-faint"
-      style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 1rem 100%, 0 calc(100% - 0.6rem))' }}
+      className="inline-flex items-center justify-center gap-2 rounded-pill bg-brand px-6 py-3 text-[15px] font-bold text-white transition-colors duration-150 hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-neutral-400"
     >
       {pending ? 'Sending…' : children}
-      {pending ? (
+      {pending && (
         <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4 animate-spin">
-          <circle
-            cx="10"
-            cy="10"
-            r="7.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeDasharray="12 36"
-          />
-        </svg>
-      ) : (
-        <svg viewBox="0 0 20 12" aria-hidden="true" className="h-3 w-5">
-          <path
-            d="M0 6h17M12.5 1.5 17.5 6l-5 4.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-          />
+          <circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="12 36" />
         </svg>
       )}
     </button>
@@ -202,10 +192,7 @@ export function SubmitButton({ pending, children }: { pending: boolean; children
 
 export function FormError({ message }: { message: string }) {
   return (
-    <p
-      role="alert"
-      className="border-t-2 border-signal-orange bg-card-shade px-4 py-3 text-[0.9375rem] text-ink"
-    >
+    <p role="alert" className="rounded-sm border border-brand/40 bg-brand-soft/40 px-4 py-3 text-sm text-heading">
       {message}
     </p>
   );
@@ -213,11 +200,9 @@ export function FormError({ message }: { message: string }) {
 
 export function FormSuccess({ title, body }: { title: string; body: string }) {
   return (
-    <div role="status" className="border-t-2 border-signal-green bg-card-shade px-6 py-7">
-      <h3 className="font-gothic text-2xl font-bold uppercase leading-none tracking-display text-ink">
-        {title}
-      </h3>
-      <p className="mt-4 text-body leading-relaxed text-ink-soft">{body}</p>
+    <div role="status" className="rounded-lg border border-hairline p-10 text-center">
+      <h3 className="text-[22px]">{title}</h3>
+      <p className="mt-2 text-body">{body}</p>
     </div>
   );
 }

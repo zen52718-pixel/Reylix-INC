@@ -50,8 +50,10 @@ export const NAV: NavItem[] = [
 export interface Vertical {
   slug: string;
   name: string;
-  summary: string;
-  capabilities: string[];
+  /** One line, used on the home page industries list. */
+  short: string;
+  /** The fuller description used on /products. */
+  detail: string;
 }
 
 /**
@@ -59,73 +61,47 @@ export interface Vertical {
  *
  * Real Estate is where the system started; each of the others is built around how that
  * industry actually acquires and qualifies customers. Order here is the order they appear
- * across the site.
+ * across the site. All five are operating — none is ever labelled planned or coming soon.
  */
 export const VERTICALS: Vertical[] = [
   {
     slug: 'real-estate',
     name: 'Real Estate',
-    summary:
-      'Buyer and seller acquisition systems for real estate professionals — combining digital presence, property presentation, lead capture, qualification, automated follow-up, property matching and appointment booking.',
-    capabilities: [
-      'Digital presence and property presentation',
-      'Buyer and seller lead capture',
-      'Requirement and timeline qualification',
-      'Property matching',
-      'Automated follow-up',
-      'Showing and consultation booking',
-    ],
+    short: 'Buyer and seller acquisition systems.',
+    detail:
+      'Buyer and seller acquisition systems built around high-value transactions and long decision cycles.',
   },
   {
     slug: 'home-services',
     name: 'Home Services',
-    summary:
-      'Customer acquisition systems for contractors, roofers, remodelers and service businesses — from estimate requests and qualification to scheduling and follow-up.',
-    capabilities: [
-      'Estimate request capture',
-      'Job and service-area qualification',
-      'Scheduling',
-      'Automated follow-up',
-    ],
+    short: 'Lead capture, qualification, booking, and follow-up systems.',
+    detail:
+      'Lead capture, qualification, booking, and follow-up systems for time-sensitive service requests.',
   },
   {
     slug: 'legal',
     name: 'Legal',
-    summary:
-      'Client acquisition systems for law firms and legal practices — structured intake, case qualification, practice-area routing and consultation scheduling.',
-    capabilities: [
-      'Structured intake',
-      'Case qualification',
-      'Practice-area routing',
-      'Consultation scheduling',
-    ],
+    short: 'Intake and qualification systems designed around high-intent inquiries.',
+    detail:
+      'Intake and qualification systems designed around high-intent, high-stakes inquiries.',
   },
   {
     slug: 'insurance',
     name: 'Insurance',
-    summary:
-      'Customer acquisition systems for insurance businesses — quote capture, qualification, routing and structured follow-up.',
-    capabilities: [
-      'Quote request capture',
-      'Coverage and eligibility qualification',
-      'Agent and product routing',
-      'Structured follow-up',
-    ],
+    short: 'Customer acquisition and qualification workflows.',
+    detail:
+      'Customer acquisition and qualification workflows built for policy and coverage decisions.',
   },
   {
     slug: 'healthcare',
     name: 'Healthcare',
-    summary:
-      'Patient acquisition systems for clinics, practices and healthcare providers — enquiry capture, service routing, qualification, appointment scheduling and automated follow-up.',
-    capabilities: [
-      'Patient enquiry capture',
-      'Service and specialty routing',
-      'Qualification',
-      'Appointment scheduling',
-      'Automated follow-up',
-    ],
+    short: 'Patient and customer acquisition systems.',
+    detail: 'Patient and customer acquisition systems built around trust and responsiveness.',
   },
 ];
+
+/** Industry options offered in the contact form's Industry select. */
+export const INDUSTRY_OPTIONS = [...VERTICALS.map((v) => v.name), 'Other'];
 
 /**
  * Consent wording, shown beside the checkbox and stored verbatim with the submission.
@@ -140,33 +116,69 @@ export const CONSENT_PARTNER =
   'I agree to be contacted by Reylix about my application, including by phone, email and SMS. Consent is not a condition of participation. Message and data rates may apply.';
 
 /**
- * The five stages of a Reylix acquisition system, used on the home page and the client
- * page. Sequential, so the numbering carries real information.
+ * The six stages of a Reylix acquisition system, from the approved design handoff.
+ * Sequential, so the numbering carries real information rather than decorating the page.
  */
 export const STAGES = [
   {
     n: '01',
-    title: 'Presence',
-    body: 'The digital experience where customers first encounter the business.',
+    title: 'Discover',
+    body: 'Reach the right audience through targeted acquisition channels.',
   },
   {
     n: '02',
     title: 'Capture',
-    body: 'Industry-specific forms and conversion points designed to collect the information the business actually needs.',
+    body: 'Convert interest into measurable, actionable prospects.',
   },
   {
     n: '03',
-    title: 'Qualification',
-    body: 'Structured questions and workflows identify intent, fit, timeline and requirements.',
+    title: 'Qualify',
+    body: 'Identify intent, fit, and readiness before opportunities reach sales.',
   },
   {
     n: '04',
-    title: 'Engagement',
-    body: 'Automated follow-up and AI-powered agents keep prospects engaged and move conversations forward.',
+    title: 'Engage',
+    body: 'Use intelligent workflows to respond at the right moment.',
   },
   {
     n: '05',
-    title: 'Conversion',
-    body: 'Qualified prospects are routed into the CRM, followed up, scheduled and moved toward a real business conversation.',
+    title: 'Follow Up',
+    body: 'Keep prospects engaged with consistent communication.',
   },
+  {
+    n: '06',
+    title: 'Convert',
+    body: 'Move qualified opportunities toward customers.',
+  },
+] as const;
+
+/** The six pieces of infrastructure the system is assembled from (home, dark section). */
+export const INFRASTRUCTURE = [
+  { name: 'AI', body: 'Intelligent conversations and qualification.' },
+  { name: 'Automation', body: 'Workflows that eliminate repetitive manual processes.' },
+  { name: 'CRM', body: 'Centralized customer and opportunity management.' },
+  { name: 'Websites', body: 'Conversion-focused digital experiences.' },
+  { name: 'Paid Acquisition', body: 'Traffic and demand generation.' },
+  { name: 'Sales Systems', body: 'Processes that turn opportunities into revenue.' },
+] as const;
+
+/** What breaks when acquisition is assembled from disconnected parts (home, section 2). */
+export const BROKEN_JOURNEY = [
+  'Traffic',
+  'Disconnected forms',
+  'Slow response',
+  'Weak qualification',
+  'Missed follow-up',
+  'Lost customer',
+] as const;
+
+/** Capability tags shown against every industry system on /products. */
+export const CAPABILITY_TAGS = [
+  'Acquisition',
+  'Lead Capture',
+  'Qualification',
+  'Automation',
+  'Follow-Up',
+  'CRM / Sales Workflow',
+  'Conversion',
 ] as const;

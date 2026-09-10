@@ -97,13 +97,36 @@ describe('POST /api/contact', () => {
         name: 'Bot',
         email: 'bot@example.com',
         consent: true,
-        website: 'spam',
+        hp: 'spam',
       }),
     );
     // 200 with no id: indistinguishable from success to a bot, but nothing is written.
     expect(res.status).toBe(200);
     expect((await res.json()).data.id).toBeUndefined();
     expect(await getRepositories().inquiries.list()).toHaveLength(0);
+  });
+
+  /**
+   * Regression: `website` was the honeypot's name until the site grew a visible Website
+   * input. If the two are ever confused again, every genuine submission carrying a website
+   * is silently discarded while the visitor is told the message was received.
+   */
+  it('treats a submitted website as real information, not as a bot signal', async () => {
+    const res = await contact(
+      post('http://localhost/api/contact', {
+        name: 'Real Person',
+        email: 'real@example.com',
+        consent: true,
+        website: 'https://example.com',
+        message: 'Looking to build a buyer acquisition system.',
+      }),
+    );
+    expect(res.status).toBe(201);
+
+    const stored = await getRepositories().inquiries.list();
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.message).toContain('https://example.com');
+    expect(stored[0]?.message).toContain('Looking to build a buyer acquisition system.');
   });
 });
 
