@@ -32,9 +32,25 @@ const EnvSchema = z
     ADMIN_EMAILS: z.string().default(''), // comma-separated admin emails
     ADMIN_PASSWORD: z.string().optional(),
 
-    // email — the key and sender are both required before any notification is sent
+    /**
+     * email — two ways to send, checked in this order:
+     *
+     *   1. SMTP, when SMTP_USER and SMTP_PASSWORD are set. This is the Hostinger path: the
+     *      domain's DNS already authorises Hostinger to send for it, so no SPF or DKIM
+     *      changes are needed. EMAIL_FROM defaults to SMTP_USER.
+     *   2. Resend, when EMAIL_PROVIDER_API_KEY and EMAIL_FROM are set.
+     *
+     * With neither, notifications are logged and nothing is delivered.
+     */
+    SMTP_HOST: z.string().min(1).default('smtp.hostinger.com'),
+    SMTP_PORT: z.coerce.number().int().positive().default(465),
+    SMTP_USER: z.string().email().optional(),
+    // SERVER-ONLY. A mailbox password also grants read access to that mailbox.
+    SMTP_PASSWORD: z.string().min(1).optional(),
+
     EMAIL_PROVIDER_API_KEY: z.string().min(1).optional(),
-    // Must be a sender the email provider has verified for your domain.
+    // The sending address. On SMTP it must be the authenticated mailbox; on Resend it must
+    // be a sender the provider has verified for your domain.
     EMAIL_FROM: z.string().email().optional(),
     // Where each public form's submissions are delivered. Defaulted to the real inboxes so
     // routing is correct without any configuration; set these only to override.

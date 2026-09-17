@@ -8,8 +8,9 @@ Names only. Never paste a value into this file, a ticket, or a chat.
 ## 1. Submissions: email is currently the system of record
 
 `STORAGE_BACKEND` resolves to `memory` in production — confirmed live at `/api/healthz`. The
-memory adapter is a process-local object, so a submission exists only inside the serverless
-invocation that received it.
+memory adapter is a process-local object. Hostinger runs a long-lived Node process rather
+than serverless functions, so a submission survives in RAM until the process restarts — and
+every redeploy restarts it. Nothing is written to disk.
 
 **The interim fix is wired and shipping: an email notifier.** When it is configured, every
 submission is emailed before the request returns, consent record included. Until Supabase
@@ -32,30 +33,47 @@ proves the routing through the real route handlers, and fails if the two are swa
 
 ### Turning it on
 
-Set both in the hosting dashboard. A partial configuration sends nothing — deliberately,
-because a half-working email path looks like it is working:
+Production runs on **Hostinger**, not Vercel: reylixinc.com answers with `platform: hostinger`
+and the API routes execute there. Set these in **hPanel -> Node.js -> Environment Variables**,
+then redeploy.
+
+Mail is sent over **Hostinger SMTP**. No DNS work is needed: the domain's zone already
+authorises Hostinger to send for it (`v=spf1 include:_spf.mail.hostinger.com` plus three
+`hostingermail-*._domainkey` DKIM CNAMEs), and both recipients are Hostinger mailboxes, so the
+mail never leaves their network.
 
 | Variable | Notes |
 |---|---|
-| `EMAIL_PROVIDER_API_KEY` | A [Resend](https://resend.com) API key |
-| `EMAIL_FROM` | A sender Resend has **verified for your domain**. Before a domain is verified, `onboarding@resend.dev` works for testing. |
+| `SMTP_USER` | The sending mailbox, e.g. `noreply@reylixinc.com`. Must be a real mailbox. |
+| `SMTP_PASSWORD` | That mailbox's password. **Server-only, and it also grants read access to the mailbox** — use a dedicated sending mailbox, not a person's. |
+| `SMTP_HOST` / `SMTP_PORT` | Default to `smtp.hostinger.com` / `465`. Leave unset unless overriding. |
+| `EMAIL_FROM` | Optional; defaults to `SMTP_USER`. It must be the authenticated mailbox, or the server rejects the envelope. |
 
-`ADMIN_NOTIFY_EMAIL` no longer receives form submissions. It is used only for lead
-notifications, which do not come from a website form.
+Set `NEXT_PUBLIC_SITE_URL=https://reylixinc.com` at the same time. It is read at BUILD time, so
+it needs a redeploy, not just a save — without it canonical URLs, Open Graph and the sitemap
+all point at `http://localhost:3000`.
 
-With neither set, the site falls back to the logging notifier and behaves exactly as it did
-before — no errors, but no delivery either. `/api/healthz` does not report notifier state.
+**Resend remains supported** and needs no code change: set `EMAIL_PROVIDER_API_KEY` and
+`EMAIL_FROM` and leave the SMTP variables blank. SMTP wins when both are configured. Resend
+would first need its own DNS records on a `send.` subdomain — the root SPF and Hostinger's
+DKIM must not be edited for it.
+
+With neither configured, the site falls back to the logging notifier: no errors, no delivery.
+`/api/healthz` does not report notifier state.
 
 ### What it guarantees, and what it does not
 
-- **The send is awaited**, never fire-and-forget. A serverless function can be frozen the
-  instant its response is returned, so an un-awaited send is mail that never leaves. A
-  regression test fails if anyone reverts that.
+- **The send is awaited**, never fire-and-forget. This matters most on serverless hosts,
+  where a function can be frozen the instant its response is returned; on the long-lived
+  Hostinger process it also guarantees a failure is logged before the request ends. A
+  regression test fails if anyone reverts it.
 - **A failed send never breaks the visitor's submission.** They filled the form correctly;
   they get the success state.
 - **A failed send is recoverable.** After one retry, the notifier writes the complete record
   to the platform log as `admin_notify_failed` with `"recoverable": true`. Grep for that
   string to find anything that did not get delivered.
+- **A hung mail server cannot stall a form.** Every SMTP timeout is set to 10s, and a 5xx
+  reply (bad credentials, rejected sender) is treated as permanent and not retried.
 - **It is still not a database.** There is no list, no search, no history, no deduplication —
   just an inbox. Supabase remains the real answer; `docs/supabase-setup.md` is the procedure.
   No migration in `supabase/migrations/` has ever been executed.
@@ -68,11 +86,12 @@ Set these in the hosting dashboard, per environment.
 
 | Variable | Why | Notes |
 |---|---|---|
-| `NEXT_PUBLIC_SITE_URL` | `metadataBase`, every canonical URL, Open Graph, sitemap, robots | **Must be set at BUILD time**, not just runtime — `NEXT_PUBLIC_*` is inlined during the build. Without it the site falls back to the Vercel host, which is correct but not the brand domain. |
+| `NEXT_PUBLIC_SITE_URL` | `metadataBase`, every canonical URL, Open Graph, sitemap, robots | **Must be set at BUILD time**, not just runtime — `NEXT_PUBLIC_*` is inlined during the build. On Hostinger there is no host to fall back to, so without it every canonical URL, Open Graph tag and sitemap entry says `http://localhost:3000`. Verified live on 2026-09-17. |
 
 ### Required for form delivery (see section 1)
 
-`EMAIL_PROVIDER_API_KEY` and `EMAIL_FROM` — both, or neither takes effect. Recipients default
+`SMTP_USER` and `SMTP_PASSWORD` (Hostinger SMTP), or `EMAIL_PROVIDER_API_KEY` and `EMAIL_FROM`
+(Resend) — a complete set, or neither takes effect. Recipients default
 to `info@reylixinc.com` (contact) and `publishers@reylixinc.com` (partner); override with
 `CONTACT_INQUIRY_EMAIL` / `PUBLISHER_INQUIRY_EMAIL` only if needed.
 

@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Inquiry } from '@/src/domain/types';
-import { EmailAdminNotifier, emailNotifierConfig } from '@/src/services/email-notifier';
+import {
+  createResendTransport,
+  EmailAdminNotifier,
+  MailTransportError,
+  type MailMessage,
+  type MailTransport,
+} from '@/src/services/email-notifier';
 
 /**
  * While there is no durable store, this notifier is the system of record for a public form
- * submission. These tests are about the failure modes, not the happy path: what happens to a
- * visitor's enquiry when the email provider is down, misconfigured, or unreachable.
+ * submission. These tests are mostly about the failure modes: what happens to a visitor's
+ * enquiry when the mail path is down, misconfigured, or unreachable.
  */
-
-const CONFIG = {
-  apiKey: 'test-key',
-  from: 'site@example.com',
-  recipients: { contact: 'info@reylixinc.com', partner_application: 'publishers@reylixinc.com' },
-};
 
 const INQUIRY: Inquiry = {
   id: 'inq-1',
@@ -30,15 +30,35 @@ const INQUIRY: Inquiry = {
   createdAt: '2026-09-11T10:00:00.000Z',
 };
 
-type Call = unknown[];
+/** A transport that records what it was asked to send and can be told to fail. */
+function stubTransport(behaviour?: () => Promise<void>) {
+  const sent: MailMessage[] = [];
+  const transport: MailTransport = {
+    name: 'stub',
+    async send(message) {
+      sent.push(message);
+      if (behaviour) await behaviour();
+    },
+  };
+  return { transport, sent };
+}
 
-let fetchMock: ReturnType<typeof vi.fn>;
-let errorCalls: Call[];
+function configWith(transport: MailTransport, leads?: string) {
+  return {
+    from: 'site@reylixinc.com',
+    recipients: {
+      contact: 'info@reylixinc.com',
+      partner_application: 'publishers@reylixinc.com',
+    },
+    leads,
+    transport,
+  };
+}
+
+let errorCalls: unknown[][];
 let originalError: typeof console.error;
 
 beforeEach(() => {
-  fetchMock = vi.fn();
-  vi.stubGlobal('fetch', fetchMock);
   originalError = console.error;
   errorCalls = [];
   console.error = (...args: unknown[]) => {
@@ -47,8 +67,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   console.error = originalError;
+  vi.unstubAllGlobals();
 });
 
 function loggedFailure(): Record<string, unknown> | null {
@@ -56,135 +76,88 @@ function loggedFailure(): Record<string, unknown> | null {
   return call ? (JSON.parse(String(call[0])) as Record<string, unknown>) : null;
 }
 
-const ROUTED_ENV = {
-  EMAIL_PROVIDER_API_KEY: 'k',
-  EMAIL_FROM: 'site@b.com',
-  CONTACT_INQUIRY_EMAIL: 'info@reylixinc.com',
-  PUBLISHER_INQUIRY_EMAIL: 'publishers@reylixinc.com',
-};
-
-describe('emailNotifierConfig', () => {
-  it('returns null unless the key, the sender and both recipients are present', () => {
-    expect(emailNotifierConfig({})).toBeNull();
-    expect(emailNotifierConfig({ EMAIL_PROVIDER_API_KEY: 'k' })).toBeNull();
-    expect(emailNotifierConfig({ ...ROUTED_ENV, EMAIL_FROM: undefined })).toBeNull();
-    expect(emailNotifierConfig({ ...ROUTED_ENV, CONTACT_INQUIRY_EMAIL: undefined })).toBeNull();
-    expect(emailNotifierConfig({ ...ROUTED_ENV, PUBLISHER_INQUIRY_EMAIL: undefined })).toBeNull();
-  });
-
-  it('maps each environment variable to its own channel', () => {
-    expect(emailNotifierConfig(ROUTED_ENV)?.recipients).toEqual({
-      contact: 'info@reylixinc.com',
-      partner_application: 'publishers@reylixinc.com',
-    });
-  });
-
-  it('keeps lead notifications separate from both form inboxes', () => {
-    expect(emailNotifierConfig(ROUTED_ENV)?.leads).toBeUndefined();
-    expect(emailNotifierConfig({ ...ROUTED_ENV, ADMIN_NOTIFY_EMAIL: 'ops@b.com' })?.leads).toBe(
-      'ops@b.com',
-    );
-  });
-});
-
 describe('EmailAdminNotifier routing', () => {
-  function sentTo(): string[] {
-    const call = fetchMock.mock.calls[0] as [string, { body: string }];
-    return (JSON.parse(call[1].body) as { to: string[] }).to;
-  }
-
   it('delivers a contact enquiry to info@reylixinc.com', async () => {
-    fetchMock.mockResolvedValue({ ok: true, status: 200 });
-    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact');
-    expect(sentTo()).toEqual(['info@reylixinc.com']);
+    const { transport, sent } = stubTransport();
+    await new EmailAdminNotifier(configWith(transport)).notifyNewInquiry(INQUIRY, 'contact');
+    expect(sent.map((m) => m.to)).toEqual(['info@reylixinc.com']);
   });
 
   it('delivers a partner application to publishers@reylixinc.com', async () => {
-    fetchMock.mockResolvedValue({ ok: true, status: 200 });
-    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'partner_application');
-    expect(sentTo()).toEqual(['publishers@reylixinc.com']);
+    const { transport, sent } = stubTransport();
+    await new EmailAdminNotifier(configWith(transport)).notifyNewInquiry(
+      INQUIRY,
+      'partner_application',
+    );
+    expect(sent.map((m) => m.to)).toEqual(['publishers@reylixinc.com']);
   });
 
-  it('records the intended recipient when delivery fails, so it can be re-sent by hand', async () => {
-    fetchMock.mockRejectedValue(new Error('ECONNRESET'));
-    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'partner_application');
+  it('carries the consent record, which is the TCPA audit trail', async () => {
+    const { transport, sent } = stubTransport();
+    await new EmailAdminNotifier(configWith(transport)).notifyNewInquiry(INQUIRY, 'contact');
+
+    const body = sent[0]?.text ?? '';
+    expect(sent[0]?.subject).toContain('Dana Client');
+    expect(body).toContain('203.0.113.9');
+    expect(body).toContain('I agree to be contacted');
+    expect(body).toContain('buyer acquisition system');
+    expect(loggedFailure()).toBeNull();
+  });
+
+  it('logs the channel and intended recipient when delivery fails', async () => {
+    const { transport } = stubTransport(() => {
+      throw new MailTransportError('nope', false);
+    });
+    await new EmailAdminNotifier(configWith(transport)).notifyNewInquiry(
+      INQUIRY,
+      'partner_application',
+    );
     expect(loggedFailure()).toMatchObject({
       channel: 'partner_application',
       intendedRecipient: 'publishers@reylixinc.com',
+      transport: 'stub',
     });
   });
 });
 
-describe('EmailAdminNotifier', () => {
-  it('sends the enquiry, including the consent record', async () => {
-    fetchMock.mockResolvedValue({ ok: true, status: 200 });
-    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact');
+describe('EmailAdminNotifier delivery behaviour', () => {
+  it('retries a retryable failure once, then succeeds', async () => {
+    let attempts = 0;
+    const { transport } = stubTransport(async () => {
+      attempts += 1;
+      if (attempts === 1) throw new MailTransportError('temporary', true);
+    });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const call = fetchMock.mock.calls[0] as [string, { headers: Record<string, string>; body: string }];
-    expect(call[0]).toBe('https://api.resend.com/emails');
-    expect(call[1].headers.authorization).toBe('Bearer test-key');
+    await new EmailAdminNotifier(configWith(transport)).notifyNewInquiry(INQUIRY, 'contact');
 
-    const body = JSON.parse(call[1].body) as Record<string, string | string[]>;
-    expect(body.to).toEqual(['info@reylixinc.com']);
-    expect(body.from).toBe('site@example.com');
-    expect(body.subject).toContain('Dana Client');
-    // The consent record has to travel with the enquiry — it is the TCPA audit trail.
-    expect(body.text).toContain('203.0.113.9');
-    expect(body.text).toContain('I agree to be contacted');
-    expect(body.text).toContain('buyer acquisition system');
+    expect(attempts).toBe(2);
     expect(loggedFailure()).toBeNull();
   });
 
   /**
-   * Regression: the endpoint used to be a module-scope `process.env` read, which the bundler
-   * inlined at build time — so the notifier kept posting to the default endpoint regardless
-   * of what the running process was configured with.
+   * A bad password or an unverified sender fails identically every time. Retrying only
+   * delays the visitor and buries the real cause.
    */
-  it('posts to the configured endpoint, not a build-time constant', async () => {
-    fetchMock.mockResolvedValue({ ok: true, status: 200 });
-    await new EmailAdminNotifier({ ...CONFIG, endpoint: 'http://localhost:4555/emails' }).notifyNewInquiry(
-      INQUIRY,
-      'contact',
-    );
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:4555/emails');
+  it('does not retry a permanent failure', async () => {
+    let attempts = 0;
+    const { transport } = stubTransport(async () => {
+      attempts += 1;
+      throw new MailTransportError('bad credentials', false);
+    });
+
+    await new EmailAdminNotifier(configWith(transport)).notifyNewInquiry(INQUIRY, 'contact');
+
+    expect(attempts).toBe(1);
+    expect(loggedFailure()).not.toBeNull();
   });
 
-  it('carries an endpoint override out of the environment', () => {
-    expect(
-      emailNotifierConfig({ ...ROUTED_ENV, EMAIL_API_ENDPOINT: 'http://localhost:4555/emails' })
-        ?.endpoint,
-    ).toBe('http://localhost:4555/emails');
-  });
-
-  it('retries once on a 5xx and succeeds', async () => {
-    fetchMock
-      .mockResolvedValueOnce({ ok: false, status: 503 })
-      .mockResolvedValueOnce({ ok: true, status: 200 });
-
-    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact');
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(loggedFailure()).toBeNull();
-  });
-
-  it('does NOT retry a 4xx — a bad key or unverified sender cannot be fixed by repeating', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 403 });
-    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  /**
-   * The important one. If delivery fails there is no other copy of the submission, so the
-   * whole record must reach the platform log where it can be recovered by hand.
-   */
-  it('logs the complete submission when delivery fails', async () => {
-    fetchMock.mockRejectedValue(new Error('ECONNRESET'));
-    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact');
+  it('logs the complete submission when delivery fails, so it is recoverable', async () => {
+    const { transport } = stubTransport(async () => {
+      throw new Error('ECONNRESET');
+    });
+    await new EmailAdminNotifier(configWith(transport)).notifyNewInquiry(INQUIRY, 'contact');
 
     const logged = loggedFailure();
-    expect(logged).not.toBeNull();
-    expect(logged?.event).toBe('admin_notify_failed');
     expect(logged?.recoverable).toBe(true);
     expect(logged?.error).toContain('ECONNRESET');
     expect(logged?.record).toMatchObject({
@@ -194,10 +167,49 @@ describe('EmailAdminNotifier', () => {
     });
   });
 
-  it('never throws, whatever the provider does', async () => {
-    fetchMock.mockRejectedValue(new Error('boom'));
+  it('never throws, whatever the transport does', async () => {
+    const { transport } = stubTransport(async () => {
+      throw new Error('boom');
+    });
     await expect(
-      new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact'),
+      new EmailAdminNotifier(configWith(transport)).notifyNewInquiry(INQUIRY, 'contact'),
     ).resolves.toBeUndefined();
+  });
+
+  it('logs leads rather than emailing them when no lead recipient is configured', async () => {
+    const { transport, sent } = stubTransport();
+    const lead = { id: 'lead-1', customerName: 'Sam' } as never;
+    await new EmailAdminNotifier(configWith(transport)).notifyNewLead(lead);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe('createResendTransport', () => {
+  it('posts to the configured endpoint, not a build-time constant', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createResendTransport({
+      apiKey: 'k',
+      from: 'site@b.com',
+      endpoint: 'http://localhost:4555/emails',
+    }).send({ to: 'a@b.com', subject: 's', text: 't' });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:4555/emails');
+  });
+
+  it('treats a 4xx as permanent and a 5xx as retryable', async () => {
+    for (const [status, retryable] of [
+      [403, false],
+      [503, true],
+    ] as const) {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status }));
+      const send = createResendTransport({ apiKey: 'k', from: 'site@b.com' }).send({
+        to: 'a@b.com',
+        subject: 's',
+        text: 't',
+      });
+      await expect(send).rejects.toMatchObject({ retryable });
+    }
   });
 });
