@@ -16,7 +16,7 @@ function build() {
 describe('InquiryService', () => {
   it('creates an inquiry and notifies admin', async () => {
     const { service, notifier } = build();
-    const inquiry = await service.create({
+    const inquiry = await service.create({ channel: 'contact',
       name: '  Jane Doe ',
       email: '  Jane@Example.COM ',
       interestType: 'client',
@@ -33,17 +33,17 @@ describe('InquiryService', () => {
 
   it('validates name and email', async () => {
     const { service } = build();
-    await expect(service.create({ name: ' ', email: 'a@b.com' })).rejects.toBeInstanceOf(
+    await expect(service.create({ channel: 'contact', name: ' ', email: 'a@b.com' })).rejects.toBeInstanceOf(
       ValidationError,
     );
-    await expect(service.create({ name: 'A', email: 'nope' })).rejects.toBeInstanceOf(
+    await expect(service.create({ channel: 'contact', name: 'A', email: 'nope' })).rejects.toBeInstanceOf(
       ValidationError,
     );
   });
 
   it('falls back to `other` for an unrecognised interest type', async () => {
     const { service } = build();
-    const inquiry = await service.create({
+    const inquiry = await service.create({ channel: 'contact',
       name: 'A',
       email: 'a@b.com',
       interestType: 'something-else',
@@ -55,7 +55,7 @@ describe('InquiryService', () => {
     it('stores consent as structured fields, not prose', async () => {
       const { service } = build();
       const at = '2026-08-24T10:00:00.000Z';
-      const inquiry = await service.create({
+      const inquiry = await service.create({ channel: 'contact',
         name: 'A',
         email: 'a@b.com',
         consentGranted: true,
@@ -74,7 +74,7 @@ describe('InquiryService', () => {
 
     it('does not record wording or a timestamp when consent was not granted', async () => {
       const { service } = build();
-      const inquiry = await service.create({
+      const inquiry = await service.create({ channel: 'contact',
         name: 'A',
         email: 'a@b.com',
         consentGranted: false,
@@ -91,7 +91,7 @@ describe('InquiryService', () => {
 
     it('defaults consent to not granted when the field is absent', async () => {
       const { service } = build();
-      const inquiry = await service.create({ name: 'A', email: 'a@b.com' });
+      const inquiry = await service.create({ channel: 'contact', name: 'A', email: 'a@b.com' });
       expect(inquiry.consentGranted).toBe(false);
     });
   });
@@ -118,7 +118,7 @@ describe('InquiryService', () => {
     };
     const service = new InquiryService(repos.inquiries, notifier);
 
-    await service.create({ name: 'A', email: 'a@b.com', consentGranted: true });
+    await service.create({ channel: 'contact', name: 'A', email: 'a@b.com', consentGranted: true });
 
     expect(settled).toBe(true);
   });
@@ -133,14 +133,22 @@ describe('InquiryService', () => {
 
     // A delivery problem must never turn a correct submission into an error for the visitor.
     await expect(
-      service.create({ name: 'A', email: 'a@b.com', consentGranted: true }),
+      service.create({ channel: 'contact', name: 'A', email: 'a@b.com', consentGranted: true }),
     ).resolves.toMatchObject({ email: 'a@b.com' });
     expect(await repos.inquiries.list()).toHaveLength(1);
   });
 
+  it('forwards the channel to the notifier unchanged', async () => {
+    for (const channel of ['contact', 'partner_application'] as const) {
+      const { service, notifier } = build();
+      const inquiry = await service.create({ channel, name: 'A', email: 'a@b.com' });
+      expect(notifier.notifyNewInquiry).toHaveBeenCalledWith(inquiry, channel);
+    }
+  });
+
   it('an inquiry is not a lead: it never reaches the leads store', async () => {
     const { service, repos } = build();
-    await service.create({ name: 'A', email: 'a@b.com', consentGranted: true });
+    await service.create({ channel: 'contact', name: 'A', email: 'a@b.com', consentGranted: true });
 
     expect(await repos.inquiries.list()).toHaveLength(1);
     // The company's front door and the acquisition pipeline are separate systems.

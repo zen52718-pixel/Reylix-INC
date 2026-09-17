@@ -8,7 +8,11 @@ import { EmailAdminNotifier, emailNotifierConfig } from '@/src/services/email-no
  * visitor's enquiry when the email provider is down, misconfigured, or unreachable.
  */
 
-const CONFIG = { apiKey: 'test-key', to: 'admin@example.com', from: 'site@example.com' };
+const CONFIG = {
+  apiKey: 'test-key',
+  from: 'site@example.com',
+  recipients: { contact: 'info@reylixinc.com', partner_application: 'publishers@reylixinc.com' },
+};
 
 const INQUIRY: Inquiry = {
   id: 'inq-1',
@@ -52,30 +56,69 @@ function loggedFailure(): Record<string, unknown> | null {
   return call ? (JSON.parse(String(call[0])) as Record<string, unknown>) : null;
 }
 
+const ROUTED_ENV = {
+  EMAIL_PROVIDER_API_KEY: 'k',
+  EMAIL_FROM: 'site@b.com',
+  CONTACT_INQUIRY_EMAIL: 'info@reylixinc.com',
+  PUBLISHER_INQUIRY_EMAIL: 'publishers@reylixinc.com',
+};
+
 describe('emailNotifierConfig', () => {
-  it('returns null unless every part is present', () => {
+  it('returns null unless the key, the sender and both recipients are present', () => {
     expect(emailNotifierConfig({})).toBeNull();
     expect(emailNotifierConfig({ EMAIL_PROVIDER_API_KEY: 'k' })).toBeNull();
-    expect(
-      emailNotifierConfig({ EMAIL_PROVIDER_API_KEY: 'k', ADMIN_NOTIFY_EMAIL: 'a@b.com' }),
-    ).toBeNull();
+    expect(emailNotifierConfig({ ...ROUTED_ENV, EMAIL_FROM: undefined })).toBeNull();
+    expect(emailNotifierConfig({ ...ROUTED_ENV, CONTACT_INQUIRY_EMAIL: undefined })).toBeNull();
+    expect(emailNotifierConfig({ ...ROUTED_ENV, PUBLISHER_INQUIRY_EMAIL: undefined })).toBeNull();
   });
 
-  it('builds a config when all three are set', () => {
-    expect(
-      emailNotifierConfig({
-        EMAIL_PROVIDER_API_KEY: 'k',
-        ADMIN_NOTIFY_EMAIL: 'a@b.com',
-        EMAIL_FROM: 'site@b.com',
-      }),
-    ).toEqual({ apiKey: 'k', to: 'a@b.com', from: 'site@b.com' });
+  it('maps each environment variable to its own channel', () => {
+    expect(emailNotifierConfig(ROUTED_ENV)?.recipients).toEqual({
+      contact: 'info@reylixinc.com',
+      partner_application: 'publishers@reylixinc.com',
+    });
+  });
+
+  it('keeps lead notifications separate from both form inboxes', () => {
+    expect(emailNotifierConfig(ROUTED_ENV)?.leads).toBeUndefined();
+    expect(emailNotifierConfig({ ...ROUTED_ENV, ADMIN_NOTIFY_EMAIL: 'ops@b.com' })?.leads).toBe(
+      'ops@b.com',
+    );
+  });
+});
+
+describe('EmailAdminNotifier routing', () => {
+  function sentTo(): string[] {
+    const call = fetchMock.mock.calls[0] as [string, { body: string }];
+    return (JSON.parse(call[1].body) as { to: string[] }).to;
+  }
+
+  it('delivers a contact enquiry to info@reylixinc.com', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200 });
+    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact');
+    expect(sentTo()).toEqual(['info@reylixinc.com']);
+  });
+
+  it('delivers a partner application to publishers@reylixinc.com', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200 });
+    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'partner_application');
+    expect(sentTo()).toEqual(['publishers@reylixinc.com']);
+  });
+
+  it('records the intended recipient when delivery fails, so it can be re-sent by hand', async () => {
+    fetchMock.mockRejectedValue(new Error('ECONNRESET'));
+    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'partner_application');
+    expect(loggedFailure()).toMatchObject({
+      channel: 'partner_application',
+      intendedRecipient: 'publishers@reylixinc.com',
+    });
   });
 });
 
 describe('EmailAdminNotifier', () => {
   it('sends the enquiry, including the consent record', async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200 });
-    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY);
+    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact');
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const call = fetchMock.mock.calls[0] as [string, { headers: Record<string, string>; body: string }];
@@ -83,7 +126,7 @@ describe('EmailAdminNotifier', () => {
     expect(call[1].headers.authorization).toBe('Bearer test-key');
 
     const body = JSON.parse(call[1].body) as Record<string, string | string[]>;
-    expect(body.to).toEqual(['admin@example.com']);
+    expect(body.to).toEqual(['info@reylixinc.com']);
     expect(body.from).toBe('site@example.com');
     expect(body.subject).toContain('Dana Client');
     // The consent record has to travel with the enquiry — it is the TCPA audit trail.
@@ -100,19 +143,17 @@ describe('EmailAdminNotifier', () => {
    */
   it('posts to the configured endpoint, not a build-time constant', async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200 });
-    await new EmailAdminNotifier({ ...CONFIG, endpoint: 'http://localhost:4555/emails' })
-      .notifyNewInquiry(INQUIRY);
+    await new EmailAdminNotifier({ ...CONFIG, endpoint: 'http://localhost:4555/emails' }).notifyNewInquiry(
+      INQUIRY,
+      'contact',
+    );
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:4555/emails');
   });
 
   it('carries an endpoint override out of the environment', () => {
     expect(
-      emailNotifierConfig({
-        EMAIL_PROVIDER_API_KEY: 'k',
-        ADMIN_NOTIFY_EMAIL: 'a@b.com',
-        EMAIL_FROM: 'site@b.com',
-        EMAIL_API_ENDPOINT: 'http://localhost:4555/emails',
-      })?.endpoint,
+      emailNotifierConfig({ ...ROUTED_ENV, EMAIL_API_ENDPOINT: 'http://localhost:4555/emails' })
+        ?.endpoint,
     ).toBe('http://localhost:4555/emails');
   });
 
@@ -121,7 +162,7 @@ describe('EmailAdminNotifier', () => {
       .mockResolvedValueOnce({ ok: false, status: 503 })
       .mockResolvedValueOnce({ ok: true, status: 200 });
 
-    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY);
+    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact');
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(loggedFailure()).toBeNull();
@@ -129,7 +170,7 @@ describe('EmailAdminNotifier', () => {
 
   it('does NOT retry a 4xx — a bad key or unverified sender cannot be fixed by repeating', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 403 });
-    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY);
+    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -139,7 +180,7 @@ describe('EmailAdminNotifier', () => {
    */
   it('logs the complete submission when delivery fails', async () => {
     fetchMock.mockRejectedValue(new Error('ECONNRESET'));
-    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY);
+    await new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact');
 
     const logged = loggedFailure();
     expect(logged).not.toBeNull();
@@ -156,7 +197,7 @@ describe('EmailAdminNotifier', () => {
   it('never throws, whatever the provider does', async () => {
     fetchMock.mockRejectedValue(new Error('boom'));
     await expect(
-      new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY),
+      new EmailAdminNotifier(CONFIG).notifyNewInquiry(INQUIRY, 'contact'),
     ).resolves.toBeUndefined();
   });
 });

@@ -32,11 +32,16 @@ const EnvSchema = z
     ADMIN_EMAILS: z.string().default(''), // comma-separated admin emails
     ADMIN_PASSWORD: z.string().optional(),
 
-    // email — all three are required together before any notification is sent
+    // email — the key and sender are both required before any notification is sent
     EMAIL_PROVIDER_API_KEY: z.string().min(1).optional(),
-    ADMIN_NOTIFY_EMAIL: z.string().email().optional(),
     // Must be a sender the email provider has verified for your domain.
     EMAIL_FROM: z.string().email().optional(),
+    // Where each public form's submissions are delivered. Defaulted to the real inboxes so
+    // routing is correct without any configuration; set these only to override.
+    CONTACT_INQUIRY_EMAIL: z.string().email().default('info@reylixinc.com'),
+    PUBLISHER_INQUIRY_EMAIL: z.string().email().default('publishers@reylixinc.com'),
+    // Lead notifications only. Leads are not a website form; unset means they are logged.
+    ADMIN_NOTIFY_EMAIL: z.string().email().optional(),
     // Override the provider endpoint. Only needed to point at a test double.
     EMAIL_API_ENDPOINT: z.string().url().optional(),
   })

@@ -12,22 +12,39 @@ memory adapter is a process-local object, so a submission exists only inside the
 invocation that received it.
 
 **The interim fix is wired and shipping: an email notifier.** When it is configured, every
-contact enquiry and partner application is emailed to `ADMIN_NOTIFY_EMAIL` before the request
-returns, consent record included. Until Supabase exists, that email is the only durable copy.
+submission is emailed before the request returns, consent record included. Until Supabase
+exists, that email is the only durable copy.
+
+### Routing
+
+Each form is delivered to its own inbox, decided by the **endpoint that received it** — never
+by anything in the submitted payload:
+
+| Form | Endpoint | Delivered to | Override with |
+|---|---|---|---|
+| Contact | `/api/contact` | `info@reylixinc.com` | `CONTACT_INQUIRY_EMAIL` |
+| Become a Partner | `/api/become-a-partner` | `publishers@reylixinc.com` | `PUBLISHER_INQUIRY_EMAIL` |
+
+Both addresses are the environment **defaults**, so no recipient configuration is needed. The
+contact API accepts `interestType: 'publisher'`; routing deliberately ignores that field, so a
+contact enquiry can never reach the publisher inbox. `tests/unit/routes/public-forms.test.ts`
+proves the routing through the real route handlers, and fails if the two are swapped.
 
 ### Turning it on
 
-Set all three in the hosting dashboard. A partial configuration sends nothing — deliberately,
+Set both in the hosting dashboard. A partial configuration sends nothing — deliberately,
 because a half-working email path looks like it is working:
 
 | Variable | Notes |
 |---|---|
 | `EMAIL_PROVIDER_API_KEY` | A [Resend](https://resend.com) API key |
-| `ADMIN_NOTIFY_EMAIL` | Where submissions are delivered |
 | `EMAIL_FROM` | A sender Resend has **verified for your domain**. Before a domain is verified, `onboarding@resend.dev` works for testing. |
 
-With none of them set, the site falls back to the logging notifier and behaves exactly as it
-did before — no errors, but no delivery either. `/api/healthz` does not report notifier state.
+`ADMIN_NOTIFY_EMAIL` no longer receives form submissions. It is used only for lead
+notifications, which do not come from a website form.
+
+With neither set, the site falls back to the logging notifier and behaves exactly as it did
+before — no errors, but no delivery either. `/api/healthz` does not report notifier state.
 
 ### What it guarantees, and what it does not
 
@@ -55,7 +72,9 @@ Set these in the hosting dashboard, per environment.
 
 ### Required for form delivery (see section 1)
 
-`EMAIL_PROVIDER_API_KEY`, `ADMIN_NOTIFY_EMAIL`, `EMAIL_FROM` — all three, or none take effect.
+`EMAIL_PROVIDER_API_KEY` and `EMAIL_FROM` — both, or neither takes effect. Recipients default
+to `info@reylixinc.com` (contact) and `publishers@reylixinc.com` (partner); override with
+`CONTACT_INQUIRY_EMAIL` / `PUBLISHER_INQUIRY_EMAIL` only if needed.
 
 ### Required only when `STORAGE_BACKEND=supabase`
 

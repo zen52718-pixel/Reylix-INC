@@ -7,7 +7,7 @@
  * change, so this suite is what proves the website was not broken by the migration.
  */
 import { NextRequest } from 'next/server';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST as becomeAPartner } from '@/app/api/become-a-partner/route';
 import { POST as contact } from '@/app/api/contact/route';
 import { __resetEnv } from '@/src/config/env';
@@ -168,5 +168,125 @@ describe('POST /api/become-a-partner', () => {
       }),
     );
     expect(res.status).toBe(400);
+  });
+});
+
+/**
+ * Email routing, through the real route handlers.
+ *
+ * No recipient variables are set here, so this runs against the environment DEFAULTS — the
+ * values production uses when nobody has overridden them. If these pass, a deploy with only
+ * the provider key and sender configured routes each form to the right inbox.
+ */
+describe('form email routing', () => {
+  const ROUTING_KEYS = [
+    'EMAIL_PROVIDER_API_KEY',
+    'EMAIL_FROM',
+    'CONTACT_INQUIRY_EMAIL',
+    'PUBLISHER_INQUIRY_EMAIL',
+    'ADMIN_NOTIFY_EMAIL',
+    'EMAIL_API_ENDPOINT',
+  ] as const;
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    for (const key of ROUTING_KEYS) delete process.env[key];
+    process.env.EMAIL_PROVIDER_API_KEY = 'test-key';
+    process.env.EMAIL_FROM = 'site@reylixinc.com';
+    __resetEnv();
+    __resetServices();
+    fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    for (const key of ROUTING_KEYS) delete process.env[key];
+    vi.unstubAllGlobals();
+  });
+
+  /** Every address the email provider was asked to deliver to, across all sends. */
+  function recipients(): string[] {
+    return fetchMock.mock.calls.flatMap((call) => {
+      const [, init] = call as [string, { body: string }];
+      return (JSON.parse(init.body) as { to: string[] }).to;
+    });
+  }
+
+  const contactPayload = {
+    name: 'Cara Contact',
+    email: 'cara@example.com',
+    interestType: 'brand',
+    message: 'We need customers.',
+    consent: true,
+  };
+
+  const partnerPayload = {
+    name: 'Pat Partner',
+    email: 'pat@example.com',
+    promoDescription: 'SEO traffic in legal.',
+    consent: true,
+  };
+
+  it('Contact form -> info@reylixinc.com', async () => {
+    const res = await contact(post('http://localhost/api/contact', contactPayload));
+    expect(res.status).toBe(201);
+    expect(recipients()).toEqual(['info@reylixinc.com']);
+  });
+
+  it('Publisher / partner form -> publishers@reylixinc.com', async () => {
+    const res = await becomeAPartner(post('http://localhost/api/become-a-partner', partnerPayload));
+    expect(res.status).toBe(201);
+    expect(recipients()).toEqual(['publishers@reylixinc.com']);
+  });
+
+  it('the two recipients cannot be swapped: each form reaches only its own inbox', async () => {
+    await contact(post('http://localhost/api/contact', contactPayload));
+    const fromContact = recipients();
+    fetchMock.mockClear();
+    await becomeAPartner(post('http://localhost/api/become-a-partner', partnerPayload));
+    const fromPartner = recipients();
+
+    expect(fromContact).not.toContain('publishers@reylixinc.com');
+    expect(fromPartner).not.toContain('info@reylixinc.com');
+    expect(fromContact).not.toEqual(fromPartner);
+  });
+
+  /**
+   * The contact API accepts `interestType: 'publisher'`. Routing on that field would send a
+   * contact enquiry to the publisher inbox, which is exactly what must not happen: routing
+   * follows the endpoint, not the payload.
+   */
+  it('a contact submission claiming to be a publisher still goes to info@reylixinc.com', async () => {
+    const res = await contact(
+      post('http://localhost/api/contact', { ...contactPayload, interestType: 'publisher' }),
+    );
+    expect(res.status).toBe(201);
+    expect(recipients()).toEqual(['info@reylixinc.com']);
+  });
+
+  it('honours the environment overrides when they are set', async () => {
+    process.env.CONTACT_INQUIRY_EMAIL = 'contact-override@example.com';
+    process.env.PUBLISHER_INQUIRY_EMAIL = 'partner-override@example.com';
+    __resetEnv();
+    __resetServices();
+
+    await contact(post('http://localhost/api/contact', contactPayload));
+    await becomeAPartner(post('http://localhost/api/become-a-partner', partnerPayload));
+
+    expect(recipients()).toEqual(['contact-override@example.com', 'partner-override@example.com']);
+  });
+
+  it('a honeypot hit sends no email to either inbox', async () => {
+    await contact(post('http://localhost/api/contact', { ...contactPayload, hp: 'bot' }));
+    await becomeAPartner(post('http://localhost/api/become-a-partner', { ...partnerPayload, hp: 'bot' }));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('a submission that fails validation sends no email', async () => {
+    await contact(post('http://localhost/api/contact', { ...contactPayload, consent: false }));
+    await becomeAPartner(
+      post('http://localhost/api/become-a-partner', { ...partnerPayload, promoDescription: '' }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

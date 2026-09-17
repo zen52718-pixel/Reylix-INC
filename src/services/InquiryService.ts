@@ -13,9 +13,15 @@ import { ValidationError } from '@/src/domain/errors';
 import type { Inquiry, InquiryInterestType } from '@/src/domain/types';
 import { INQUIRY_INTEREST_TYPES } from '@/src/domain/types';
 import type { InquiryRepo } from '@/src/repositories/interfaces';
-import type { AdminNotifier } from '@/src/services/notifications';
+import type { AdminNotifier, InquiryChannel } from '@/src/services/notifications';
 
 export interface CreateInquiryInput {
+  /**
+   * The form this inquiry came through, which decides the inbox it is delivered to.
+   * Required, with no default: a new form that forgot to set it would otherwise land in
+   * whichever inbox the default happened to be, and nobody would notice.
+   */
+  channel: InquiryChannel;
   name: string;
   email: string;
   phone?: string;
@@ -74,7 +80,7 @@ export class InquiryService {
      * here is belt-and-braces so a future notifier cannot turn a good submission into a 500.
      */
     try {
-      await this.notifier.notifyNewInquiry(inquiry);
+      await this.notifier.notifyNewInquiry(inquiry, input.channel);
     } catch {
       // Already logged by the notifier. The visitor did nothing wrong.
     }

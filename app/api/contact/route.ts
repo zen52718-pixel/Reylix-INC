@@ -66,6 +66,10 @@ export async function POST(request: NextRequest) {
     if (input.hp) return jsonOk({ received: true });
 
     const inquiry = await getServices().inquiries.create({
+      // Fixed by the endpoint, never by the payload: this route accepts
+      // `interestType: 'publisher'`, and that must not route a contact enquiry to the
+      // publisher inbox.
+      channel: 'contact',
       name: input.name,
       email: input.email,
       phone: input.phone,

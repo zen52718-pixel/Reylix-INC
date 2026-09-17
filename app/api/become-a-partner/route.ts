@@ -61,6 +61,8 @@ export async function POST(request: NextRequest) {
     if (input.hp) return jsonOk({ received: true });
 
     const inquiry = await getServices().inquiries.create({
+      // Fixed by the endpoint: partner applications go to the publisher inbox.
+      channel: 'partner_application',
       name: input.name,
       email: input.email,
       phone: input.phone,

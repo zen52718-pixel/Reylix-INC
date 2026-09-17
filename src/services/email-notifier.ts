@@ -20,13 +20,24 @@
  * the running process had configured.
  */
 import type { Inquiry, Lead } from '@/src/domain/types';
-import type { AdminNotifier } from '@/src/services/notifications';
+import {
+  LoggingAdminNotifier,
+  type AdminNotifier,
+  type InquiryChannel,
+} from '@/src/services/notifications';
 
 export interface EmailNotifierConfig {
   apiKey: string;
-  to: string;
   from: string;
-  /** Defaults to Resend. Injected rather than read from module scope — see below. */
+  /**
+   * Where each public form's inquiries are delivered. Keyed by channel, so a caller names
+   * which form a submission came from and never handles an address itself — there is exactly
+   * one place a contact enquiry and a partner application could be mixed up, and it is here.
+   */
+  recipients: Record<InquiryChannel, string>;
+  /** Recipient for lead notifications. Leads are not a website form; unset means log only. */
+  leads?: string;
+  /** Defaults to Resend. Injected rather than read from module scope — see above. */
   endpoint?: string;
 }
 
@@ -65,18 +76,25 @@ function leadLines(lead: Lead): string[] {
 }
 
 export class EmailAdminNotifier implements AdminNotifier {
+  private readonly fallback = new LoggingAdminNotifier();
+
   constructor(private readonly config: EmailNotifierConfig) {}
 
-  async notifyNewInquiry(inquiry: Inquiry): Promise<void> {
+  async notifyNewInquiry(inquiry: Inquiry, channel: InquiryChannel): Promise<void> {
     await this.send(
+      this.config.recipients[channel],
       `New enquiry — ${inquiry.name}${inquiry.company ? ` (${inquiry.company})` : ''}`,
       inquiryLines(inquiry).join('\n'),
-      { kind: 'new_inquiry', record: inquiry },
+      { kind: 'new_inquiry', channel, record: inquiry },
     );
   }
 
   async notifyNewLead(lead: Lead): Promise<void> {
-    await this.send(`New lead — ${lead.customerName}`, leadLines(lead).join('\n'), {
+    if (!this.config.leads) {
+      await this.fallback.notifyNewLead(lead);
+      return;
+    }
+    await this.send(this.config.leads, `New lead — ${lead.customerName}`, leadLines(lead).join('\n'), {
       kind: 'new_lead',
       record: lead,
     });
@@ -87,9 +105,10 @@ export class EmailAdminNotifier implements AdminNotifier {
    * visitor's correct submission into an error page.
    */
   private async send(
+    to: string,
     subject: string,
     text: string,
-    context: { kind: string; record: unknown },
+    context: { kind: string; channel?: InquiryChannel; record: unknown },
   ): Promise<void> {
     let lastError = '';
 
@@ -103,7 +122,7 @@ export class EmailAdminNotifier implements AdminNotifier {
           },
           body: JSON.stringify({
             from: this.config.from,
-            to: [this.config.to],
+            to: [to],
             subject,
             text,
           }),
@@ -121,11 +140,14 @@ export class EmailAdminNotifier implements AdminNotifier {
     }
 
     // The send failed and there is no other copy. Write the whole record where it can be
-    // recovered from, and mark it so it is greppable.
+    // recovered from, and mark it so it is greppable. The intended recipient travels with it
+    // so a recovered record can still reach the right inbox by hand.
     console.error(
       JSON.stringify({
         event: 'admin_notify_failed',
         type: context.kind,
+        channel: context.channel,
+        intendedRecipient: to,
         error: lastError,
         recoverable: true,
         record: context.record,
@@ -137,16 +159,30 @@ export class EmailAdminNotifier implements AdminNotifier {
 /**
  * Build the notifier only when it is completely configured. A half-configured email path is
  * worse than none: it looks like delivery is happening while nothing arrives.
+ *
+ * The provider credentials are required, and so are both inquiry recipients — but in the
+ * running app `loadEnv()` always supplies the recipients, because `CONTACT_INQUIRY_EMAIL` and
+ * `PUBLISHER_INQUIRY_EMAIL` default to the real inboxes. In production only the API key and
+ * the sender need setting.
  */
 export function emailNotifierConfig(env: {
   EMAIL_PROVIDER_API_KEY?: string;
-  ADMIN_NOTIFY_EMAIL?: string;
   EMAIL_FROM?: string;
+  CONTACT_INQUIRY_EMAIL?: string;
+  PUBLISHER_INQUIRY_EMAIL?: string;
+  ADMIN_NOTIFY_EMAIL?: string;
   EMAIL_API_ENDPOINT?: string;
 }): EmailNotifierConfig | null {
   const apiKey = env.EMAIL_PROVIDER_API_KEY?.trim();
-  const to = env.ADMIN_NOTIFY_EMAIL?.trim();
   const from = env.EMAIL_FROM?.trim();
-  if (!apiKey || !to || !from) return null;
-  return { apiKey, to, from, endpoint: env.EMAIL_API_ENDPOINT?.trim() || undefined };
+  const contact = env.CONTACT_INQUIRY_EMAIL?.trim();
+  const partner = env.PUBLISHER_INQUIRY_EMAIL?.trim();
+  if (!apiKey || !from || !contact || !partner) return null;
+  return {
+    apiKey,
+    from,
+    recipients: { contact, partner_application: partner },
+    leads: env.ADMIN_NOTIFY_EMAIL?.trim() || undefined,
+    endpoint: env.EMAIL_API_ENDPOINT?.trim() || undefined,
+  };
 }
