@@ -152,10 +152,10 @@ No measurement ID is invented here. Supply the real one when you have it.
 - **Privacy policy and terms are explicit placeholders**, and the site collects names, emails,
   phone numbers, IP addresses and TCPA-style consent through two live forms. That combination
   needs counsel before launch. Both pages say so plainly and are `noindex`.
-- **No Open Graph image.** The OG/Twitter metadata is complete except the image, which needs a
-  real 1200×630 asset. Shared links will render as text-only cards until then.
-- **No `apple-touch-icon`.** `favicon.ico` and `icon.svg` ship; iOS home-screen bookmarks will
-  fall back to a screenshot.
+- ~~No Open Graph image.~~ **Shipped.** `app/opengraph-image.png` is a real 1200×630 asset, and
+  Next's file convention emits both `og:image` and `twitter:image` from it.
+- ~~No `apple-touch-icon`.~~ **Shipped.** `app/apple-icon.png` is 180×180 and full-bleed, with no
+  transparency and no pre-rounded corners, because iOS applies its own mask.
 - **The site shows no proof.** No metrics, testimonials, client logos or case studies exist,
   and none are invented. The design handoff has no slot for them either, so adding one is a
   design decision as well as a content one — worth making once a real client system can be

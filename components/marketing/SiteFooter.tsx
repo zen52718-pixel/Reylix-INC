@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandMark } from '@/components/marketing/BrandMark';
 import {
   ADDRESS_LINES,
   CONTACT_EMAIL,
@@ -35,8 +36,9 @@ export function SiteFooter() {
       <div className="container-rx">
         <div className="grid gap-12 md:grid-cols-[1.6fr_1fr_1fr]">
           <div>
-            <div className="mb-3 flex items-center gap-2 text-xl font-bold text-white">
-              <span aria-hidden="true" className="h-[9px] w-[9px] rounded-[2px] bg-brand" />
+            {/* `inverse` matches the lg-white asset: white tile, orange chevron, on the dark ground. */}
+            <div className="mb-3 flex items-center gap-2.5 text-xl font-bold text-white">
+              <BrandMark variant="inverse" className="h-8 w-8" />
               REYLIX
             </div>
             <p className="max-w-[320px] text-sm">Customer Acquisition Systems.</p>

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { BrandMark } from '@/components/marketing/BrandMark';
 import { NAV } from '@/components/marketing/content';
 
 /**
@@ -45,8 +46,8 @@ export function SiteHeader() {
       >
         <Container>
           <div className="flex h-[76px] items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-[-0.01em] text-heading hover:text-heading">
-              <span aria-hidden="true" className="h-[9px] w-[9px] rounded-[2px] bg-brand" />
+            <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-[-0.01em] text-heading hover:text-heading">
+              <BrandMark className="h-8 w-8" />
               REYLIX
             </Link>
 

@@ -87,7 +87,13 @@ commission per qualified lead that is attributed, approved and paid through a li
   client, never "lead" for a person the client will speak to.
 - Voice: plain, specific, unhurried. States what the system does and what it does not do.
   No hype vocabulary, no growth-hacking register, no exclamation.
-- The existing SVG logo mark (`components/ui/Logo.tsx`) is the only confirmed visual asset.
+- The brand mark is a white chevron in a rounded tile, drawn in `components/marketing/BrandMark.tsx`
+  from the supplied brand asset canvas: 25% corner radius, chevron `M38,28 -> 62,50 -> 38,72`,
+  stroke 9% of the tile, round cap and join. That component is the single source of geometry;
+  `app/icon.svg`, `app/apple-icon.png`, `app/favicon.ico` and `app/opengraph-image.png` all
+  repeat the same numbers. The tile uses the vivid brand orange `#fa5a15` rather than the
+  accessible `#ae400c` used for text and buttons — WCAG 1.4.11 exempts logotypes from the
+  contrast minimum, so this is a deliberate split, not a drift.
 - Industries are never labelled "Planned", "In Development" or "Coming Soon". All five are
   presented as operating.
 

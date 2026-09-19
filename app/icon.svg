@@ -1,7 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
-  <rect width="24" height="24" fill="#2e3836"/>
-  <g stroke="#f4f2ec" stroke-width="2.4" stroke-linecap="square" fill="none">
-    <path d="M3 5h11"/><path d="M3 12h8"/><path d="M3 19h11"/>
-  </g>
-  <path d="M14 5c0 3.6 5.5 3.6 5.5 7s-5.5 3.4-5.5 7" stroke="#b83f16" stroke-width="2.4" stroke-linecap="square" fill="none"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <title>Reylix</title>
+  <!--
+    lg-favicon: the mark on a circle. Corners are left transparent rather than painted
+    white so the icon sits correctly on dark browser chrome as well as light.
+    Geometry matches components/marketing/BrandMark.tsx exactly.
+  -->
+  <circle cx="50" cy="50" r="50" fill="#fa5a15"/>
+  <path d="M38 28 L62 50 L38 72" fill="none" stroke="#ffffff" stroke-width="9"
+        stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
