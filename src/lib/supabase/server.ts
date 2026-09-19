@@ -14,10 +14,15 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { getStorageBackend, supabaseConfig } from '@/src/config/env';
 
-/** Build a request-scoped Supabase client that reads and writes the auth cookies. */
-export function createSupabaseServerClient() {
+/**
+ * Build a request-scoped Supabase client that reads and writes the auth cookies.
+ *
+ * Async because `cookies()` returns a promise from Next 15 onward: request data is awaited
+ * so a page can start rendering before the request is fully resolved.
+ */
+export async function createSupabaseServerClient() {
   const { url, anonKey } = supabaseConfig();
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   return createServerClient(url, anonKey, {
     cookies: {
@@ -52,7 +57,7 @@ export async function getAuthUserId(): Promise<string | null> {
   if (getStorageBackend() !== 'supabase') return null;
 
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) return null;
     return data.user.id;
