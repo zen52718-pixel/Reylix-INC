@@ -133,55 +133,29 @@ export interface Stage {
 export function StageRow({
   stages,
   compact = false,
-  dense = false,
-  tone = 'light',
 }: {
   stages: readonly Stage[];
-  /** Narrower cards. Deliberately does NOT change padding — three pages rely on this width alone. */
   compact?: boolean;
-  /** Tighter vertical padding, for a row sitting inside a card rather than a full-width band. */
-  dense?: boolean;
-  /**
-   * `dark` is the same row on a dark ground. It swaps to `brand-dark` for the numeral, which
-   * clears 4.5:1 on the dark surface where the standard `brand` would not, and lifts the card
-   * one step above its container so the borders still read.
-   */
-  tone?: 'light' | 'dark';
 }) {
-  const dark = tone === 'dark';
   return (
     <ol className="flex flex-col items-stretch gap-y-2 md:flex-row md:flex-wrap md:gap-y-3">
       {stages.map((s, i) => (
         <li key={s.title} className="contents">
           <div
-            className={`flex-1 rounded-md border px-4 ${dense ? 'py-4' : 'py-6'} ${
-              dark ? 'border-neutral-800 bg-surface-dark' : 'border-hairline bg-white'
-            } ${compact ? 'md:min-w-[130px]' : 'md:min-w-[150px]'}`}
+            className={`flex-1 rounded-md border border-hairline bg-white px-4 py-6 ${
+              compact ? 'md:min-w-[130px]' : 'md:min-w-[150px]'
+            }`}
           >
-            <div
-              className={`text-xs font-bold tracking-[0.05em] ${dark ? 'text-brand-dark' : 'text-brand'}`}
-            >
+            <div className="text-xs font-bold tracking-[0.05em] text-brand">
               {s.n ?? `0${i + 1}`}
             </div>
-            <div
-              className={`mt-1.5 text-base font-bold ${dark ? 'text-neutral-50' : 'text-heading'}`}
-            >
-              {s.title}
-            </div>
-            {s.body && (
-              <p
-                className={`mt-1.5 text-[13px] leading-normal ${dark ? 'text-neutral-400' : 'text-body'}`}
-              >
-                {s.body}
-              </p>
-            )}
+            <div className="mt-1.5 text-base font-bold text-heading">{s.title}</div>
+            {s.body && <p className="mt-1.5 text-[13px] leading-normal text-body">{s.body}</p>}
           </div>
           {i < stages.length - 1 && (
             <div
               aria-hidden="true"
-              className={`flex h-5 w-full shrink-0 rotate-90 items-center justify-center md:h-auto md:w-7 md:rotate-0 ${
-                dark ? 'text-neutral-600' : 'text-neutral-400'
-              }`}
+              className="flex h-5 w-full shrink-0 rotate-90 items-center justify-center text-neutral-400 md:h-auto md:w-7 md:rotate-0"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M13 6l6 6-6 6" />
@@ -191,6 +165,45 @@ export function StageRow({
         </li>
       ))}
     </ol>
+  );
+}
+
+/**
+ * `dg-framework` from the brand asset canvas, in full: the six stages once as a large
+ * headline flow, then again as numbered cards.
+ *
+ * The canvas draws this 1600x300 — it is a wide band, and it only reads as a flow when it
+ * has the width to run left to right. Both rows wrap rather than scroll horizontally, for
+ * the same reason StageRow does: a scrollbar nobody sees hides the end of the sequence.
+ *
+ * The cards carry number and title only, as the canvas has them. Descriptions belong to the
+ * section that explains each stage, not to the diagram that names them.
+ */
+export function SystemFlow({ stages }: { stages: readonly Stage[] }) {
+  return (
+    <div>
+      {/*
+        3vw keeps the whole sequence on one line from roughly 1024px up, which is how the
+        canvas draws it — at 4vw "Convert" dropped to a second line behind a dangling arrow.
+        Below that it wraps, which is the right behaviour on a phone.
+      */}
+      <ol className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[clamp(24px,3vw,42px)] font-bold leading-[1.2] tracking-[-0.02em] text-heading">
+        {stages.map((s, i) => (
+          <li key={s.title} className="contents">
+            <span>{s.title}</span>
+            {i < stages.length - 1 && (
+              <span aria-hidden="true" className="font-normal text-neutral-400">
+                &rarr;
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+
+      <div className="mt-9">
+        <StageRow stages={stages.map(({ n, title }) => ({ n, title }))} />
+      </div>
+    </div>
   );
 }
 

@@ -15,51 +15,37 @@ import {
   PrimaryButton,
   SecondaryButton,
   Section,
-  StageRow,
+  SystemFlow,
 } from '@/components/marketing/primitives';
 import { StageIcon } from '@/components/marketing/StageIcon';
 
 export default function HomePage() {
   return (
     <>
-      {/* Hero: text left, the acquisition architecture as a dark timeline card right. */}
+      {/*
+        Hero: a centred statement, then the acquisition architecture full width beneath it.
+        The architecture used to sit in a half-width column beside the copy, where the six
+        stages wrapped into a block of boxes and stopped reading as a sequence. `dg-framework`
+        in the brand canvas is a wide band, so it is given the full width here.
+      */}
       <section className="section bg-white pt-[72px]">
         <Container>
-          <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-16">
-            <div>
-              <Eyebrow>Customer Acquisition Systems</Eyebrow>
-              <h1 className="text-[clamp(40px,6vw,72px)] leading-[1.05]">Customers, not clicks.</h1>
-              <p className="mt-6 max-w-[480px] text-[19px]">
-                Reylix builds customer acquisition systems that connect marketing, intelligent
-                automation, sales, and follow-up into one connected system.
-              </p>
-              <ButtonRow className="mt-9">
-                <PrimaryButton href="/contact">Build Your Acquisition System</PrimaryButton>
-                <SecondaryButton href="/products">Explore Reylix</SecondaryButton>
-              </ButtonRow>
-            </div>
+          <div className="mx-auto max-w-[780px] text-center">
+            <Eyebrow>Customer Acquisition Systems</Eyebrow>
+            <h1 className="text-[clamp(40px,6vw,72px)] leading-[1.05]">Customers, not clicks.</h1>
+            <p className="mx-auto mt-6 max-w-[560px] text-[19px]">
+              Reylix builds customer acquisition systems that connect marketing, intelligent
+              automation, sales, and follow-up into one connected system.
+            </p>
+            <ButtonRow className="mt-9 justify-center">
+              <PrimaryButton href="/contact">Build Your Acquisition System</PrimaryButton>
+              <SecondaryButton href="/products">Explore Reylix</SecondaryButton>
+            </ButtonRow>
+          </div>
 
-            {/*
-              The six stages in the brand's own flow treatment — numbered cards with arrows
-              between — rather than a plain dotted list. Same StageRow the page already uses
-              further down, so the hero and the system section state the stages identically.
-            */}
-            <div className="rounded-xl border border-hairline bg-surface-darker p-8">
-              <div className="tag text-neutral-400">Acquisition Architecture</div>
-              <div className="mt-5">
-                {/*
-                  Number and title only, as the diagram has it. The descriptions are not
-                  dropped — they carry the "One system. Every stage" section below, and
-                  repeating them here would make the hero restate the whole page.
-                */}
-                <StageRow
-                  stages={STAGES.map(({ n, title }) => ({ n, title }))}
-                  tone="dark"
-                  compact
-                  dense
-                />
-              </div>
-            </div>
+          <div className="mt-16 border-t border-hairline pt-12 lg:mt-20 lg:pt-14">
+            <Eyebrow>The Reylix System</Eyebrow>
+            <SystemFlow stages={STAGES} />
           </div>
         </Container>
       </section>
@@ -78,7 +64,8 @@ export default function HomePage() {
           </p>
         </Reveal>
 
-        <Reveal className="mb-12">
+        {/* No bottom margin: the broken journey is now the last thing in this section. */}
+        <Reveal>
           <ul className="flex flex-wrap items-center gap-2">
             {BROKEN_JOURNEY.map((step, i) => (
               <li key={step} className="flex items-center gap-2">
@@ -95,10 +82,11 @@ export default function HomePage() {
           </ul>
         </Reveal>
 
-        <Reveal>
-          <div className="tag mb-3">Reylix System</div>
-          <StageRow stages={STAGES} />
-        </Reveal>
+        {/*
+          The six stages used to be restated here as a second StageRow. They now open the page
+          in full, one screen above, so repeating them made the same cards appear twice. The
+          section's own heading and paragraph already carry the contrast this row illustrated.
+        */}
       </Section>
 
       {/* The system, one cell per stage. */}
