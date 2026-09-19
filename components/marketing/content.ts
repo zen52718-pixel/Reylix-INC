@@ -35,6 +35,35 @@ export function siteUrl(): string {
   return 'http://localhost:3000';
 }
 
+/**
+ * Public contact details. One definition, so the footer, the contact page and the legal
+ * pages cannot drift apart.
+ *
+ * The two addresses below are also the defaults for form routing in `src/config/env.ts`
+ * (CONTACT_INQUIRY_EMAIL / PUBLISHER_INQUIRY_EMAIL). They are duplicated deliberately: this
+ * file is bundled for the browser and must never import server configuration. If one side
+ * changes, change the other.
+ *
+ * `noreply@reylixinc.com` is the SMTP sending identity and is NEVER displayed publicly.
+ */
+export const CONTACT_EMAIL = 'info@reylixinc.com';
+export const PUBLISHER_EMAIL = 'publishers@reylixinc.com';
+
+export const COMPANY_ADDRESS = {
+  line1: '159 Avis Street',
+  city: 'Rochester',
+  state: 'NY',
+  postalCode: '14615',
+  country: 'USA',
+} as const;
+
+/** The address as a human reads it, one line per row. */
+export const ADDRESS_LINES: readonly string[] = [
+  COMPANY_ADDRESS.line1,
+  `${COMPANY_ADDRESS.city}, ${COMPANY_ADDRESS.state} ${COMPANY_ADDRESS.postalCode}`,
+  COMPANY_ADDRESS.country,
+];
+
 export interface NavItem {
   href: string;
   label: string;

@@ -57,3 +57,7 @@ next-env.d.ts
 # The design OUTPUTS (PRODUCT.md, DESIGN.md, .impeccable/surfaces/) are committed.
 /.claude/skills/impeccable/
 /.claude/agents/impeccable-*.md
+
+# Agent tool scaffolding, same reasoning as the Impeccable skill above.
+/.agents/
+/.codex/

@@ -1,5 +1,10 @@
 import Link from 'next/link';
-import { LEGAL_NAME } from '@/components/marketing/content';
+import {
+  ADDRESS_LINES,
+  CONTACT_EMAIL,
+  LEGAL_NAME,
+  PUBLISHER_EMAIL,
+} from '@/components/marketing/content';
 
 const YEAR = new Date().getFullYear();
 
@@ -35,6 +40,36 @@ export function SiteFooter() {
               REYLIX
             </div>
             <p className="max-w-[320px] text-sm">Customer Acquisition Systems.</p>
+
+            {/* `not-italic` because browsers italicise <address> by default. */}
+            <address className="mt-5 text-sm not-italic">
+              {ADDRESS_LINES.map((line) => (
+                <span key={line} className="block">
+                  {line}
+                </span>
+              ))}
+            </address>
+
+            <ul className="mt-5 flex flex-col gap-1.5 text-sm">
+              <li>
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="inline-block py-1 text-neutral-400 transition-colors hover:text-white"
+                >
+                  {CONTACT_EMAIL}
+                </a>
+                <span className="ml-2 text-neutral-400">General</span>
+              </li>
+              <li>
+                <a
+                  href={`mailto:${PUBLISHER_EMAIL}`}
+                  className="inline-block py-1 text-neutral-400 transition-colors hover:text-white"
+                >
+                  {PUBLISHER_EMAIL}
+                </a>
+                <span className="ml-2 text-neutral-400">Publishers</span>
+              </li>
+            </ul>
           </div>
 
           <nav aria-label="Navigation">
@@ -78,8 +113,11 @@ export function SiteFooter() {
           <span>
             &copy; {YEAR} {LEGAL_NAME.toUpperCase()}. All rights reserved.
           </span>
-          {/* State of incorporation intentionally unstated until confirmed. */}
-          <span>United States</span>
+          {/*
+            This slot used to read "United States". The address above now states the country,
+            and both inboxes are listed there too, so anything here would just repeat itself.
+            State of incorporation remains deliberately unstated until confirmed.
+          */}
         </div>
       </div>
     </footer>

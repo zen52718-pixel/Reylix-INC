@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { LegalPage } from '@/components/marketing/LegalPage';
-import { LEGAL_NAME } from '@/components/marketing/content';
+import { ADDRESS_LINES, CONTACT_EMAIL, LEGAL_NAME } from '@/components/marketing/content';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/terms' },
@@ -43,7 +43,10 @@ const SECTIONS: [string, string][] = [
     'Changes to Terms',
     'We may update these terms from time to time. Continued use of the website constitutes acceptance of the updated terms.',
   ],
-  ['Contact', 'Questions about these terms can be submitted through our Contact page.'],
+  [
+    'Contact',
+    `Questions about these terms can be submitted through our Contact page, or sent to ${CONTACT_EMAIL}. ${LEGAL_NAME}, ${ADDRESS_LINES.join(', ')}.`,
+  ],
 ];
 
 export default function TermsPage() {

@@ -160,5 +160,6 @@ No measurement ID is invented here. Supply the real one when you have it.
   and none are invented. The design handoff has no slot for them either, so adding one is a
   design decision as well as a content one — worth making once a real client system can be
   pointed at.
-- **Business identity is undecided and deliberately unstated:** production domain, publishable
-  contact email, business address, and state of incorporation. Nothing invents them.
+- **Business identity:** address and both public inboxes are published (see
+  `components/marketing/content.ts`). The production domain is live. Still unstated: the state
+  of incorporation and any public phone number — nothing invents them.

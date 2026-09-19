@@ -71,9 +71,12 @@ commission per qualified lead that is attributed, approved and paid through a li
 - The publisher portal and the Supabase/auth infrastructure are **on hold**. No Supabase
   project exists; no migration has been executed. The public site must not promise a portal
   as if it were available today.
-- **Undecided, and not to be invented:** the production domain (`NEXT_PUBLIC_SITE_URL` is a
-  placeholder), a publishable contact email, a business address or city, and the state of
-  incorporation.
+- **Confirmed public contact details** (single source: `components/marketing/content.ts`):
+  REYLIX INC., 159 Avis Street, Rochester, NY 14615, USA. General enquiries
+  `info@reylixinc.com`; publisher enquiries `publishers@reylixinc.com`.
+  `noreply@reylixinc.com` is the SMTP sending identity and is never displayed publicly.
+- **Undecided, and not to be invented:** the state of incorporation, and any public phone
+  number.
 
 ## Brand Commitments
 

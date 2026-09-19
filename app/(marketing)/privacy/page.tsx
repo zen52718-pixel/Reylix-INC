@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { LegalPage } from '@/components/marketing/LegalPage';
+import { ADDRESS_LINES, CONTACT_EMAIL, LEGAL_NAME } from '@/components/marketing/content';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/privacy' },
@@ -42,7 +43,10 @@ const SECTIONS: [string, string][] = [
     'Changes to This Policy',
     'We may update this privacy policy from time to time. Continued use of the website constitutes acceptance of the updated policy.',
   ],
-  ['Contact', 'Questions about this policy can be submitted through our Contact page.'],
+  [
+    'Contact',
+    `Questions about this policy can be submitted through our Contact page, or sent to ${CONTACT_EMAIL}. ${LEGAL_NAME}, ${ADDRESS_LINES.join(', ')}.`,
+  ],
 ];
 
 export default function PrivacyPage() {

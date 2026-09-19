@@ -14,10 +14,24 @@ import { __resetEnv } from '@/src/config/env';
 import { __resetRepositories, getRepositories } from '@/src/repositories';
 import { __resetServices } from '@/src/services';
 
-function post(url: string, body: unknown): NextRequest {
+/**
+ * Each request gets its own client IP.
+ *
+ * The public forms are rate limited to 20 submissions per minute per IP, and the limiter is
+ * process-local, so a shared address makes these tests starve each other: add a few and a
+ * later test silently starts receiving 429s instead of exercising what it claims to. A
+ * distinct IP per request keeps every test independent of how many ran before it.
+ */
+let clientIp = 0;
+
+function post(url: string, body: unknown, ip?: string): NextRequest {
+  clientIp += 1;
   return new NextRequest(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.9' },
+    headers: {
+      'content-type': 'application/json',
+      'x-forwarded-for': ip ?? `203.0.113.${clientIp % 250}`,
+    },
     body: JSON.stringify(body),
   });
 }
@@ -46,7 +60,7 @@ describe('POST /api/contact', () => {
         interestType: 'brand',
         message: 'We need customers.',
         consent: true,
-      }),
+      }, '203.0.113.9'),
     );
 
     expect(res.status).toBe(201);
@@ -186,6 +200,12 @@ describe('form email routing', () => {
     'PUBLISHER_INQUIRY_EMAIL',
     'ADMIN_NOTIFY_EMAIL',
     'EMAIL_API_ENDPOINT',
+    // Cleared so an inherited SMTP config cannot switch the transport under these tests,
+    // which inspect the HTTP path.
+    'SMTP_USER',
+    'SMTP_PASSWORD',
+    'SMTP_HOST',
+    'SMTP_PORT',
   ] as const;
   let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -262,6 +282,88 @@ describe('form email routing', () => {
     );
     expect(res.status).toBe(201);
     expect(recipients()).toEqual(['info@reylixinc.com']);
+  });
+
+  /**
+   * The four guarantees the business depends on, stated one per test so a failure names the
+   * exact breach. `messages()` counts EVERY send the transport was asked to make, so a
+   * duplicate notification fails these just as loudly as a misrouted one.
+   */
+  describe('exactly one notification, to exactly the right inbox', () => {
+    function messages(): { to: string[]; subject: string; text: string }[] {
+      return fetchMock.mock.calls.map((call) => {
+        const [, init] = call as [string, { body: string }];
+        return JSON.parse(init.body) as { to: string[]; subject: string; text: string };
+      });
+    }
+
+    it('contact submission sends EXACTLY ONE notification, to info@reylixinc.com', async () => {
+      await contact(post('http://localhost/api/contact', contactPayload));
+      const sent = messages();
+      expect(sent).toHaveLength(1);
+      expect(sent[0]?.to).toEqual(['info@reylixinc.com']);
+    });
+
+    it('contact submission NEVER reaches publishers@reylixinc.com', async () => {
+      await contact(post('http://localhost/api/contact', contactPayload));
+      for (const m of messages()) {
+        expect(m.to).not.toContain('publishers@reylixinc.com');
+      }
+    });
+
+    it('partner submission sends EXACTLY ONE notification, to publishers@reylixinc.com', async () => {
+      await becomeAPartner(post('http://localhost/api/become-a-partner', partnerPayload));
+      const sent = messages();
+      expect(sent).toHaveLength(1);
+      expect(sent[0]?.to).toEqual(['publishers@reylixinc.com']);
+    });
+
+    it('partner submission NEVER reaches info@reylixinc.com', async () => {
+      await becomeAPartner(post('http://localhost/api/become-a-partner', partnerPayload));
+      for (const m of messages()) {
+        expect(m.to).not.toContain('info@reylixinc.com');
+      }
+    });
+
+    it('each email carries its own submission, never the other one', async () => {
+      await contact(post('http://localhost/api/contact', contactPayload));
+      await becomeAPartner(post('http://localhost/api/become-a-partner', partnerPayload));
+
+      const sent = messages();
+      expect(sent).toHaveLength(2);
+
+      const toContact = sent.find((m) => m.to.includes('info@reylixinc.com'));
+      const toPublishers = sent.find((m) => m.to.includes('publishers@reylixinc.com'));
+
+      expect(toContact?.subject).toContain('Cara Contact');
+      expect(toContact?.text).toContain('We need customers.');
+      expect(toContact?.text).not.toContain('SEO traffic in legal.');
+
+      expect(toPublishers?.subject).toContain('Pat Partner');
+      expect(toPublishers?.text).toContain('SEO traffic in legal.');
+      expect(toPublishers?.text).not.toContain('We need customers.');
+
+      // The consent record must travel with each one — it is the TCPA audit trail.
+      for (const m of sent) expect(m.text).toContain('--- consent record ---');
+    });
+
+    /**
+     * Ten submissions through one endpoint must produce ten messages to one address. A
+     * recipient list that were shared or mutated between calls would show up here as an
+     * address drifting after the first send.
+     */
+    it('repeated submissions do not let recipients leak between channels', async () => {
+      for (let i = 0; i < 5; i++) {
+        await contact(post('http://localhost/api/contact', contactPayload));
+        await becomeAPartner(post('http://localhost/api/become-a-partner', partnerPayload));
+      }
+      const sent = messages();
+      expect(sent).toHaveLength(10);
+      expect(sent.filter((m) => m.to[0] === 'info@reylixinc.com')).toHaveLength(5);
+      expect(sent.filter((m) => m.to[0] === 'publishers@reylixinc.com')).toHaveLength(5);
+      // No message ever addressed to more than one inbox.
+      for (const m of sent) expect(m.to).toHaveLength(1);
+    });
   });
 
   it('honours the environment overrides when they are set', async () => {

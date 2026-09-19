@@ -1,6 +1,12 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { ContactForm } from '@/components/marketing/ContactForm';
-import { LEGAL_NAME } from '@/components/marketing/content';
+import {
+  ADDRESS_LINES,
+  CONTACT_EMAIL,
+  LEGAL_NAME,
+  PUBLISHER_EMAIL,
+} from '@/components/marketing/content';
 import { Container, Eyebrow } from '@/components/marketing/primitives';
 
 export const metadata: Metadata = {
@@ -25,10 +31,48 @@ export default function ContactPage() {
               every inquiry personally.
             </p>
 
-            <div className="mt-10 border-t border-hairline pt-6">
-              <div className="tag">{LEGAL_NAME}</div>
-              {/* No address, phone or email is stated until real ones exist. */}
-              <p className="mt-2 text-[15px]">United States</p>
+            <div className="mt-10 space-y-6 border-t border-hairline pt-6">
+              <div>
+                <div className="tag">{LEGAL_NAME}</div>
+                {/*
+                  A postal address is a factual claim, so it is rendered as one: <address> is
+                  the element for the contact details of its nearest article or document.
+                  `not-italic` because browsers italicise it by default, which the type scale
+                  does not ask for.
+                */}
+                <address className="mt-2 text-[15px] not-italic">
+                  {ADDRESS_LINES.map((line) => (
+                    <span key={line} className="block">
+                      {line}
+                    </span>
+                  ))}
+                </address>
+              </div>
+
+              <div>
+                <div className="tag">General inquiries</div>
+                <p className="mt-2 text-[15px]">
+                  <a href={`mailto:${CONTACT_EMAIL}`} className="inline-block py-1 underline underline-offset-4">
+                    {CONTACT_EMAIL}
+                  </a>
+                </p>
+              </div>
+
+              <div>
+                <div className="tag">Publisher inquiries</div>
+                <p className="mt-2 text-[15px]">
+                  <a href={`mailto:${PUBLISHER_EMAIL}`} className="inline-block py-1 underline underline-offset-4">
+                    {PUBLISHER_EMAIL}
+                  </a>
+                </p>
+                <p className="mt-1 max-w-[420px] text-[13px] text-muted">
+                  Applying to the publisher network?{' '}
+                  <Link href="/become-a-partner" className="inline-block py-1 underline underline-offset-4">
+                    The application form
+                  </Link>{' '}
+                  reaches the right place faster.
+                </p>
+              </div>
             </div>
           </div>
 
