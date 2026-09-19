@@ -133,29 +133,55 @@ export interface Stage {
 export function StageRow({
   stages,
   compact = false,
+  dense = false,
+  tone = 'light',
 }: {
   stages: readonly Stage[];
+  /** Narrower cards. Deliberately does NOT change padding — three pages rely on this width alone. */
   compact?: boolean;
+  /** Tighter vertical padding, for a row sitting inside a card rather than a full-width band. */
+  dense?: boolean;
+  /**
+   * `dark` is the same row on a dark ground. It swaps to `brand-dark` for the numeral, which
+   * clears 4.5:1 on the dark surface where the standard `brand` would not, and lifts the card
+   * one step above its container so the borders still read.
+   */
+  tone?: 'light' | 'dark';
 }) {
+  const dark = tone === 'dark';
   return (
     <ol className="flex flex-col items-stretch gap-y-2 md:flex-row md:flex-wrap md:gap-y-3">
       {stages.map((s, i) => (
         <li key={s.title} className="contents">
           <div
-            className={`flex-1 rounded-md border border-hairline bg-white px-4 py-6 ${
-              compact ? 'md:min-w-[130px]' : 'md:min-w-[150px]'
-            }`}
+            className={`flex-1 rounded-md border px-4 ${dense ? 'py-4' : 'py-6'} ${
+              dark ? 'border-neutral-800 bg-surface-dark' : 'border-hairline bg-white'
+            } ${compact ? 'md:min-w-[130px]' : 'md:min-w-[150px]'}`}
           >
-            <div className="text-xs font-bold tracking-[0.05em] text-brand">
+            <div
+              className={`text-xs font-bold tracking-[0.05em] ${dark ? 'text-brand-dark' : 'text-brand'}`}
+            >
               {s.n ?? `0${i + 1}`}
             </div>
-            <div className="mt-1.5 text-base font-bold text-heading">{s.title}</div>
-            {s.body && <p className="mt-1.5 text-[13px] leading-normal text-body">{s.body}</p>}
+            <div
+              className={`mt-1.5 text-base font-bold ${dark ? 'text-neutral-50' : 'text-heading'}`}
+            >
+              {s.title}
+            </div>
+            {s.body && (
+              <p
+                className={`mt-1.5 text-[13px] leading-normal ${dark ? 'text-neutral-400' : 'text-body'}`}
+              >
+                {s.body}
+              </p>
+            )}
           </div>
           {i < stages.length - 1 && (
             <div
               aria-hidden="true"
-              className="flex h-5 w-full shrink-0 rotate-90 items-center justify-center text-neutral-400 md:h-auto md:w-7 md:rotate-0"
+              className={`flex h-5 w-full shrink-0 rotate-90 items-center justify-center md:h-auto md:w-7 md:rotate-0 ${
+                dark ? 'text-neutral-600' : 'text-neutral-400'
+              }`}
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M13 6l6 6-6 6" />

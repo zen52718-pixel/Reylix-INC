@@ -39,21 +39,26 @@ export default function HomePage() {
               </ButtonRow>
             </div>
 
+            {/*
+              The six stages in the brand's own flow treatment — numbered cards with arrows
+              between — rather than a plain dotted list. Same StageRow the page already uses
+              further down, so the hero and the system section state the stages identically.
+            */}
             <div className="rounded-xl border border-hairline bg-surface-darker p-8">
               <div className="tag text-neutral-400">Acquisition Architecture</div>
-              <ol className="mt-5">
-                {STAGES.map((s, i) => (
-                  <li key={s.title} className="flex items-center gap-4">
-                    <div className="flex w-6 flex-col items-center self-stretch">
-                      <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand-dark" />
-                      {i < STAGES.length - 1 && (
-                        <span aria-hidden="true" className="min-h-[28px] w-px flex-1 bg-neutral-700" />
-                      )}
-                    </div>
-                    <div className="py-2.5 text-[15px] font-bold text-neutral-50">{s.title}</div>
-                  </li>
-                ))}
-              </ol>
+              <div className="mt-5">
+                {/*
+                  Number and title only, as the diagram has it. The descriptions are not
+                  dropped — they carry the "One system. Every stage" section below, and
+                  repeating them here would make the hero restate the whole page.
+                */}
+                <StageRow
+                  stages={STAGES.map(({ n, title }) => ({ n, title }))}
+                  tone="dark"
+                  compact
+                  dense
+                />
+              </div>
             </div>
           </div>
         </Container>
