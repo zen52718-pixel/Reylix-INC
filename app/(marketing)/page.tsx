@@ -5,6 +5,7 @@ import {
   STAGES,
   VERTICALS,
 } from '@/components/marketing/content';
+import { HeroGrid } from '@/components/marketing/HeroGrid';
 import { JourneyScroller } from '@/components/marketing/JourneyScroller';
 import { Reveal } from '@/components/marketing/Reveal';
 import {
@@ -29,20 +30,32 @@ export default function HomePage() {
         in the brand canvas is a wide band, so it is given the full width here.
       */}
       <section className="section bg-white pt-[72px]">
-        <Container>
-          <div className="mx-auto max-w-[780px] text-center">
-            <Eyebrow>Customer Acquisition Systems</Eyebrow>
-            <h1 className="text-[clamp(40px,6vw,72px)] leading-[1.05]">Customers, not clicks.</h1>
-            <p className="mx-auto mt-6 max-w-[560px] text-[19px]">
-              Reylix builds customer acquisition systems that connect marketing, intelligent
-              automation, sales, and follow-up into one connected system.
-            </p>
-            <ButtonRow className="mt-9 justify-center">
-              <PrimaryButton href="/contact">Build Your Acquisition System</PrimaryButton>
-              <SecondaryButton href="/products">Explore Reylix</SecondaryButton>
-            </ButtonRow>
-          </div>
+        {/*
+          The statement sits over the hover grid, which bleeds the full width rather than
+          sitting inside the container — it reads as the page's surface, not as a panel.
 
+          The copy layer is `pointer-events-none` so the pointer reaches the cells behind it;
+          the buttons switch it back on for themselves.
+        */}
+        <div className="relative overflow-hidden">
+          <HeroGrid />
+          <Container>
+            <div className="pointer-events-none relative mx-auto max-w-[780px] py-10 text-center sm:py-14">
+              <Eyebrow>Customer Acquisition Systems</Eyebrow>
+              <h1 className="text-[clamp(40px,6vw,72px)] leading-[1.05]">Customers, not clicks.</h1>
+              <p className="mx-auto mt-6 max-w-[560px] text-[19px]">
+                Reylix builds customer acquisition systems that connect marketing, intelligent
+                automation, sales, and follow-up into one connected system.
+              </p>
+              <ButtonRow className="pointer-events-auto mt-9 justify-center">
+                <PrimaryButton href="/contact">Build Your Acquisition System</PrimaryButton>
+                <SecondaryButton href="/products">Explore Reylix</SecondaryButton>
+              </ButtonRow>
+            </div>
+          </Container>
+        </div>
+
+        <Container>
           <div className="mt-16 border-t border-hairline pt-12 lg:mt-20 lg:pt-14">
             <Eyebrow>The Reylix System</Eyebrow>
             <SystemFlow stages={STAGES} />
