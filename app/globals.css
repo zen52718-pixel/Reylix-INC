@@ -159,25 +159,37 @@
 
 @layer utilities {
   /*
-    Scroll reveal. Starts visible-but-offset rather than at opacity 0, so content is never
-    hidden if IntersectionObserver never fires — and it is disabled outright under
-    prefers-reduced-motion by the base layer above.
+    Scroll reveal. The base class carries the transition and nothing else — no opacity, no
+    transform — so an element is visible until JavaScript decides otherwise.
+
+    This comment previously claimed the rule started "visible-but-offset ... so content is
+    never hidden if IntersectionObserver never fires", while the rule underneath it set
+    `opacity: 0`. The comment described the safe design; the code did the opposite.
   */
   .reveal {
-    opacity: 0;
-    transform: translateY(16px);
     transition:
       opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
       transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .reveal.in-view {
-    opacity: 1;
-    transform: none;
+  /*
+    Hidden ONLY while JavaScript is actively driving this element. The attribute is set by
+    Reveal.tsx after it has an observer watching, and removed when the element scrolls in or
+    when the observer proves unhealthy.
+
+    The default state above is fully visible, with no opacity or transform. That is the whole
+    point: server-rendered HTML carries no `data-reveal`, so if the script never loads, never
+    parses, never hydrates, or the observer never fires, the content is simply visible. It
+    used to be `opacity: 0` here, which made every section below the hero depend on JavaScript
+    to become readable at all.
+  */
+  .reveal[data-reveal='pending'] {
+    opacity: 0;
+    transform: translateY(16px);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .reveal {
+    .reveal[data-reveal='pending'] {
       opacity: 1;
       transform: none;
     }
