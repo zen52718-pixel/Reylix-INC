@@ -8,6 +8,7 @@ import {
 import { HeroGrid } from '@/components/marketing/HeroGrid';
 import { JourneyScroller } from '@/components/marketing/JourneyScroller';
 import { Reveal } from '@/components/marketing/Reveal';
+import { JsonLd } from '@/components/marketing/JsonLd';
 import {
   ButtonRow,
   Container,
@@ -18,11 +19,28 @@ import {
   Section,
   SystemFlow,
 } from '@/components/marketing/primitives';
+import { graph, serviceSchema, webPageSchema } from '@/components/marketing/seo';
 import { StageIcon } from '@/components/marketing/StageIcon';
 
 export default function HomePage() {
   return (
     <>
+      <JsonLd
+        data={graph(
+          webPageSchema({
+            path: '/',
+            name: 'Reylix INC — Customer Acquisition Systems',
+            description:
+              'Reylix INC is a U.S.-registered customer acquisition company that builds and operates customer acquisition systems for businesses across real estate, home services, legal, insurance and healthcare.',
+          }),
+          serviceSchema({
+            name: 'Customer Acquisition Systems',
+            description:
+              'Design and operation of customer acquisition systems that connect acquisition, lead capture, qualification, automation, follow-up, CRM and conversion into one connected system.',
+            serviceType: 'Customer acquisition',
+          }),
+        )}
+      />
       {/*
         Hero: a centred statement, then the acquisition architecture full width beneath it.
         The architecture used to sit in a half-width column beside the copy, where the six

@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
 import { LegalPage } from '@/components/marketing/LegalPage';
 import { ADDRESS_LINES, CONTACT_EMAIL, LEGAL_NAME } from '@/components/marketing/content';
+import { pageMetadata } from '@/components/marketing/seo';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/terms' },
+export const metadata: Metadata = pageMetadata({
+  path: '/terms',
   title: 'Terms of Service',
-  description: 'The terms under which the Reylix INC website is provided.',
-  // Kept noindex until the terms have been through counsel. See docs/production-launch.md.
+  description:
+    'The terms under which the Reylix INC website is provided.',
+  // Kept noindex until the document has been through counsel. See docs/production-launch.md.
   robots: { index: false, follow: true },
-};
+});
 
 const SECTIONS: [string, string][] = [
   [

@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
 import { Reveal } from '@/components/marketing/Reveal';
 import { CTASection, PageHero, Section } from '@/components/marketing/primitives';
+import { JsonLd } from '@/components/marketing/JsonLd';
+import { graph, pageMetadata, webPageSchema } from '@/components/marketing/seo';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/about' },
+export const metadata: Metadata = pageMetadata({
+  path: '/about',
   title: 'About',
   description:
     'Reylix is a customer acquisition company. We design and operate the systems that connect marketing, technology, automation and sales into one connected system.',
-};
+});
 
 const FOCUS = [
   ['Systems', 'Connected infrastructure, not isolated tools.'],
@@ -21,6 +23,21 @@ const FOCUS = [
 export default function AboutPage() {
   return (
     <>
+      <JsonLd
+        data={graph(
+          webPageSchema({
+            type: 'AboutPage',
+            path: '/about',
+            name: 'About Reylix INC',
+            description:
+              'Reylix INC is a U.S.-registered customer acquisition company. It designs and operates the systems that connect marketing, technology, automation and sales into one connected system.',
+            breadcrumbs: [
+              { name: 'Home', path: '/' },
+              { name: 'About', path: '/about' },
+            ],
+          }),
+        )}
+      />
       <PageHero
         eyebrow="About Reylix"
         title="We're building the infrastructure behind customer growth."

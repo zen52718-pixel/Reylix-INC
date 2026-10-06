@@ -8,17 +8,34 @@ import {
   PUBLISHER_EMAIL,
 } from '@/components/marketing/content';
 import { Container, Eyebrow } from '@/components/marketing/primitives';
+import { JsonLd } from '@/components/marketing/JsonLd';
+import { graph, pageMetadata, webPageSchema } from '@/components/marketing/seo';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/contact' },
+export const metadata: Metadata = pageMetadata({
+  path: '/contact',
   title: 'Contact',
   description:
     'Tell us about your business and what you are looking to build. We respond to every inquiry personally.',
-};
+});
 
 export default function ContactPage() {
   return (
     <section className="section bg-white pt-[72px]">
+      <JsonLd
+        data={graph(
+          webPageSchema({
+            type: 'ContactPage',
+            path: '/contact',
+            name: 'Contact Reylix INC',
+            description:
+              'Contact Reylix INC about building a customer acquisition system. General enquiries reach info@reylixinc.com; publisher enquiries reach publishers@reylixinc.com.',
+            breadcrumbs: [
+              { name: 'Home', path: '/' },
+              { name: 'Contact', path: '/contact' },
+            ],
+          }),
+        )}
+      />
       <Container>
         <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
           <div>

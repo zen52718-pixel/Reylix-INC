@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
 import { LegalPage } from '@/components/marketing/LegalPage';
 import { ADDRESS_LINES, CONTACT_EMAIL, LEGAL_NAME } from '@/components/marketing/content';
+import { pageMetadata } from '@/components/marketing/seo';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/privacy' },
+export const metadata: Metadata = pageMetadata({
+  path: '/privacy',
   title: 'Privacy Policy',
-  description: 'How Reylix INC handles information collected through this website.',
-  // Kept noindex until the policy has been through counsel. See docs/production-launch.md.
+  description:
+    'How Reylix INC handles information collected through this website.',
+  // Kept noindex until the document has been through counsel. See docs/production-launch.md.
   robots: { index: false, follow: true },
-};
+});
 
 const SECTIONS: [string, string][] = [
   [

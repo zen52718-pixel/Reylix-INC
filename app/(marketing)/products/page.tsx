@@ -7,17 +7,42 @@ import {
   SecondaryButton,
   Section,
 } from '@/components/marketing/primitives';
+import { JsonLd } from '@/components/marketing/JsonLd';
+import { graph, pageMetadata, serviceSchema, webPageSchema } from '@/components/marketing/seo';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/products' },
+export const metadata: Metadata = pageMetadata({
+  path: '/products',
   title: 'Industry-Specific Acquisition Systems',
   description:
     'Vertical-specific customer acquisition systems for real estate, home services, legal, insurance and healthcare — acquisition, capture, qualification, automation, follow-up, CRM and conversion in one system.',
-};
+});
 
 export default function ProductsPage() {
   return (
     <>
+      <JsonLd
+        data={graph(
+          webPageSchema({
+            path: '/products',
+            name: 'Industry-Specific Acquisition Systems',
+            description:
+              'Vertical-specific customer acquisition systems for real estate, home services, legal, insurance and healthcare.',
+            breadcrumbs: [
+              { name: 'Home', path: '/' },
+              { name: 'Products', path: '/products' },
+            ],
+          }),
+          // One Service node per industry Reylix actually serves, described in the words the
+          // page already uses. Nothing is claimed here that the page does not say in prose.
+          ...VERTICALS.map((v) =>
+            serviceSchema({
+              name: `Customer Acquisition Systems for ${v.name}`,
+              description: v.detail,
+              serviceType: 'Customer acquisition',
+            }),
+          ),
+        )}
+      />
       <PageHero
         eyebrow="Products"
         title="Acquisition systems built around the way your business grows."

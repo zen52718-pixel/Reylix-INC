@@ -2,13 +2,15 @@ import type { Metadata } from 'next';
 import { PartnerForm } from '@/components/marketing/PartnerForm';
 import { Reveal } from '@/components/marketing/Reveal';
 import { Container, PageHero, Section, StageRow } from '@/components/marketing/primitives';
+import { JsonLd } from '@/components/marketing/JsonLd';
+import { graph, pageMetadata, webPageSchema } from '@/components/marketing/seo';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/become-a-partner' },
+export const metadata: Metadata = pageMetadata({
+  path: '/become-a-partner',
   title: 'Become a Partner',
   description:
     'Apply to the Reylix publisher network. Promote customer acquisition offers with tracked referral links and earn commission on approved leads.',
-};
+});
 
 /** The seven-step partner flow from the design handoff. */
 const FLOW = [
@@ -24,6 +26,21 @@ const FLOW = [
 export default function BecomeAPartnerPage() {
   return (
     <>
+      <JsonLd
+        data={graph(
+          webPageSchema({
+            path: '/become-a-partner',
+            name: 'Become a Reylix Publisher Partner',
+            description:
+              'Apply to the Reylix publisher network. Promote customer acquisition offers with tracked referral links and earn commission on approved leads.',
+            breadcrumbs: [
+              { name: 'Home', path: '/' },
+              { name: 'For Publishers', path: '/for-publishers' },
+              { name: 'Become a Partner', path: '/become-a-partner' },
+            ],
+          }),
+        )}
+      />
       <PageHero
         eyebrow="Partner Program"
         title="Build with Reylix."

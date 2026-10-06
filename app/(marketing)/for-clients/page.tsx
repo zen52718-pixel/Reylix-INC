@@ -7,13 +7,15 @@ import {
   Section,
   StageRow,
 } from '@/components/marketing/primitives';
+import { JsonLd } from '@/components/marketing/JsonLd';
+import { graph, pageMetadata, serviceSchema, webPageSchema } from '@/components/marketing/seo';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/for-clients' },
+export const metadata: Metadata = pageMetadata({
+  path: '/for-clients',
   title: 'For Clients',
   description:
     'Reylix builds the infrastructure behind customer growth — website, acquisition channels, qualification, automation, CRM and sales follow-up, operated as one connected system.',
-};
+});
 
 /** The nine-step client journey from the design handoff. */
 const JOURNEY = [
@@ -37,6 +39,26 @@ const PRINCIPLES = [
 export default function ForClientsPage() {
   return (
     <>
+      <JsonLd
+        data={graph(
+          webPageSchema({
+            path: '/for-clients',
+            name: 'For Clients',
+            description:
+              'Reylix builds the infrastructure behind customer growth — website, acquisition channels, qualification, automation, CRM and sales follow-up, operated as one connected system.',
+            breadcrumbs: [
+              { name: 'Home', path: '/' },
+              { name: 'For Clients', path: '/for-clients' },
+            ],
+          }),
+          serviceSchema({
+            name: 'Customer Acquisition System Build and Operation',
+            description:
+              'Reylix designs, builds and operates the acquisition system for a business: website, acquisition channels, lead capture, qualification, automation, CRM and sales follow-up as one connected system.',
+            serviceType: 'Customer acquisition',
+          }),
+        )}
+      />
       <PageHero
         eyebrow="For Clients"
         title="Turn your customer acquisition into a system."

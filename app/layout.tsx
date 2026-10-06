@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { siteUrl } from '@/components/marketing/content';
+import { JsonLd } from '@/components/marketing/JsonLd';
+import { graph, organizationSchema, websiteSchema } from '@/components/marketing/seo';
 import './globals.css';
 
 /**
@@ -39,7 +41,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-US">
-      <body className="bg-white font-sans text-body antialiased">{children}</body>
+      <body className="bg-white font-sans text-body antialiased">
+        {/*
+          Who the company is and what this site is, stated once for the whole site. Every
+          page's own WebPage node references these by @id rather than repeating them, so the
+          company's name, address and description can never drift between pages.
+        */}
+        <JsonLd data={graph(organizationSchema(), websiteSchema())} />
+        {children}
+      </body>
     </html>
   );
 }

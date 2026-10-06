@@ -75,9 +75,9 @@ export function SiteFooter() {
           </div>
 
           <nav aria-label="Navigation">
-            <h2 className="mb-4 text-[13px] font-bold uppercase tracking-[0.06em] text-neutral-50">
+            <div className="mb-4 text-[13px] font-bold uppercase tracking-[0.06em] text-neutral-50">
               Navigation
-            </h2>
+            </div>
             <ul className="flex flex-col gap-1.5">
               {NAVIGATION.map((l) => (
                 <li key={l.href}>
@@ -93,9 +93,9 @@ export function SiteFooter() {
           </nav>
 
           <nav aria-label="Legal">
-            <h2 className="mb-4 text-[13px] font-bold uppercase tracking-[0.06em] text-neutral-50">
+            <div className="mb-4 text-[13px] font-bold uppercase tracking-[0.06em] text-neutral-50">
               Legal
-            </h2>
+            </div>
             <ul className="flex flex-col gap-1.5">
               {LEGAL.map((l) => (
                 <li key={l.href}>

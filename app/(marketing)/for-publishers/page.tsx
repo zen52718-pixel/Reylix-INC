@@ -7,13 +7,15 @@ import {
   Section,
   StageRow,
 } from '@/components/marketing/primitives';
+import { JsonLd } from '@/components/marketing/JsonLd';
+import { graph, pageMetadata, webPageSchema } from '@/components/marketing/seo';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/for-publishers' },
+export const metadata: Metadata = pageMetadata({
+  path: '/for-publishers',
   title: 'For Publishers',
   description:
     'The Reylix publisher network lets publishers promote Reylix offers and generate qualified opportunities with clear tracking and attribution.',
-};
+});
 
 /** The seven-step publisher flow from the design handoff. */
 const FLOW = [
@@ -38,6 +40,20 @@ const VALUE = [
 export default function ForPublishersPage() {
   return (
     <>
+      <JsonLd
+        data={graph(
+          webPageSchema({
+            path: '/for-publishers',
+            name: 'For Publishers',
+            description:
+              'The Reylix publisher network lets publishers promote Reylix offers and generate qualified opportunities with clear tracking and attribution.',
+            breadcrumbs: [
+              { name: 'Home', path: '/' },
+              { name: 'For Publishers', path: '/for-publishers' },
+            ],
+          }),
+        )}
+      />
       <PageHero
         eyebrow="For Publishers"
         title="Turn traffic into measurable opportunities."
